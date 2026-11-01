@@ -14,5 +14,5 @@ export type BookingQuote = z.infer<typeof bookingQuote>;
 export type CodeRequest = z.infer<typeof requestCodeInput>;
 export type PublicBookingQuote = Pick<BookingQuote, "title" | "location" | "durationMinutes" | "cancelCutoffMinutes" | "rescheduleCutoffMinutes">;
 export type CodeChallenge = { challengeId: string; expiresAt: string; resendAt: string; quote: PublicBookingQuote };
-export type BookingReceipt = { id: string; title: string; location: string; startAt: string; endAt: string; timezone: string;
+export type BookingReceipt = { id: string; title: string; description: string; location: string; startAt: string; endAt: string; timezone: string;
   guestName: string; guestEmail: string; organizerName: string; status: "confirmed" | "cancelled"; managementToken: string };

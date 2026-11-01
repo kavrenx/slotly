@@ -117,6 +117,16 @@ it("retries confirmation after a lost response without creating a second booking
   await changePageState(db, f.organizer.id, f.page.id, { version: 1, state: "archived" });
   time = new Date(time.getTime() + 3_600_000); expect(await confirm(f.page.publicId, challenge)).toEqual(results[0]);
 });
+it("returns the original confirmation description for calendar export even after editing the page", async () => {
+  const f = await configured();
+  await updatePage(db, f.organizer.id, f.page.id, { ...pageDefaults, title: "Консультация", description: "Исходное описание", version: 1 });
+  const challenge = await requestGuestCode(deps, f.page.publicId, input(), ip);
+  const first = await confirm(f.page.publicId, challenge);
+  expect(first.description).toBe("Исходное описание");
+  await updatePage(db, f.organizer.id, f.page.id, { ...pageDefaults, title: "Другое название", description: "Новое описание", version: 2 });
+  const replay = await confirm(f.page.publicId, challenge);
+  expect(replay.description).toBe("Исходное описание"); expect(replay.id).toBe(first.id);
+});
 it("lets exactly one of two verified guests book the same time", async () => {
   const f = await configured(); const a = await requestGuestCode(deps, f.page.publicId, input(), ip); const b = await requestGuestCode(deps, f.page.publicId, input(), ip);
   const results = await Promise.allSettled([confirm(f.page.publicId, a), confirm(f.page.publicId, b)]);

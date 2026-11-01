@@ -106,13 +106,13 @@ export async function requestGuestCode(deps: GuestBookingDependencies, publicId:
   return dto(challenge);
 }
 
-async function receipt(database: Database, id: string, organizerId: string, secret: string): Promise<BookingReceipt> {
+async function receipt(database: Database, id: string, organizerId: string, secret: string, description: string): Promise<BookingReceipt> {
   const [row] = await database.select({ id: bookings.id, title: bookings.titleSnapshot, location: bookings.locationSnapshot, startAt: occupancies.startAt, endAt: occupancies.endAt,
     releasedAt: occupancies.releasedAt, timezone: bookings.guestTimezone, guestName: bookings.guestName, guestEmail: bookings.guestEmail, organizerName: organizers.displayName })
     .from(bookings).innerJoin(occupancies, eq(occupancies.id, bookings.occupancyId)).innerJoin(organizers, eq(organizers.id, bookings.organizerId))
     .where(and(eq(bookings.id, id), eq(bookings.organizerId, organizerId)));
   if (!row) throw new DomainError("INVALID_CODE");
-  return { id: row.id, title: row.title, location: row.location, startAt: row.startAt.toISOString(), endAt: row.endAt.toISOString(), timezone: row.timezone,
+  return { id: row.id, title: row.title, description, location: row.location, startAt: row.startAt.toISOString(), endAt: row.endAt.toISOString(), timezone: row.timezone,
     guestName: row.guestName, guestEmail: row.guestEmail, organizerName: row.organizerName, status: row.releasedAt ? "cancelled" : "confirmed",
     managementToken: createManagementToken(secret, { id: row.id, organizerId, guestEmail: row.guestEmail }) };
 }
@@ -132,7 +132,8 @@ export async function confirmGuestBooking(deps: GuestBookingDependencies, public
         await tx.update(guestChallenges).set({ attempts: challenge.attempts + 1 }).where(eq(guestChallenges.id, challenge.id));
         return { error: new DomainError("INVALID_CODE") }; // Commit the failed attempt.
       }
-      if (challenge.bookingId) return { booking: await receipt(tx, challenge.bookingId, owner.organizerId, deps.secret) };
+      const savedDescription = bookingQuote.parse(challenge.quote).description;
+      if (challenge.bookingId) return { booking: await receipt(tx, challenge.bookingId, owner.organizerId, deps.secret, savedDescription) };
       const page = await readPublishedPage(tx, publicId);
       if (!isDeepStrictEqual(quote(page), challenge.quote)) return { error: new DomainError("CONDITIONS_CHANGED", 409) };
       await assertAvailable(tx, page, challenge.startAt.toISOString(), challenge.endAt.toISOString(), challenge.guestTimezone, at);
@@ -145,7 +146,7 @@ export async function confirmGuestBooking(deps: GuestBookingDependencies, public
         horizonDays: page.horizonDays, cancelCutoffMinutes: page.cancelCutoffMinutes, rescheduleCutoffMinutes: page.rescheduleCutoffMinutes }).returning();
       await tx.insert(bookingEvents).values({ bookingId: booked!.id, organizerId: owner.organizerId, version: 1, type: "created", actor: "guest", newStartAt: challenge.startAt, newEndAt: challenge.endAt });
       await tx.update(guestChallenges).set({ consumedAt: at, bookingId: booked!.id }).where(eq(guestChallenges.id, challenge.id));
-      return { booking: await receipt(tx, booked!.id, owner.organizerId, deps.secret) };
+      return { booking: await receipt(tx, booked!.id, owner.organizerId, deps.secret, savedDescription) };
     });
     if (result.error) throw result.error; return result.booking!;
   } catch (error) { if (postgresCode(error) === "23P01") throw new DomainError("SLOT_UNAVAILABLE", 409); throw error; }

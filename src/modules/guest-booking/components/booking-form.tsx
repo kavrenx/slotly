@@ -10,6 +10,7 @@ import { managementHref } from "@/modules/booking-management/contract";
 import { CopyManagementLink } from "@/modules/booking-management/components/management-link";
 import { bookingManagement } from "@/i18n/messages/ru/booking-management";
 import { pastedGuestCode } from "../code-paste";
+import { CalendarDownload } from "./calendar-download";
 
 class GuestRequestError extends Error {
   constructor(public code: string, public retryAfter = 0) { super(t.errors[code] ?? t.errors.SERVICE_UNAVAILABLE); }
@@ -97,7 +98,7 @@ export function BookingSuccess({ receipt, onAnother }: { receipt: BookingReceipt
   useEffect(() => { title.current?.focus(); }, []);
   return <section className={styles.panel + " " + styles.success} aria-labelledby="booking-success-title"><BookingSteps step={3} /><div aria-hidden="true" className={styles.successIcon}>{receipt.status === "confirmed" ? "✓" : "−"}</div><h2 ref={title} tabIndex={-1} id="booking-success-title" className={styles.successTitle}>{receipt.status === "confirmed" ? t.success : "Запись отменена"}</h2><p className={styles.description}>{receipt.status === "confirmed" ? t.successText : "Эта встреча больше не занимает время в расписании."}</p>
     <div className={styles.successDetails}><h3>{receipt.title}</h3><MeetingSummary slot={receipt} timezone={receipt.timezone} /><dl><div><dt>{t.organizer}</dt><dd>{receipt.organizerName}</dd></div>{receipt.location && <div><dt>Место или способ связи</dt><dd className="whitespace-pre-wrap">{receipt.location}</dd></div>}</dl><details className={styles.reference}><summary>{t.guest} и {t.reference.toLowerCase()}</summary><p>{receipt.guestName}<br />{receipt.guestEmail}</p><p className="font-mono">{receipt.id}</p></details></div>
-    <div className={styles.successActions}><a href={managementHref(receipt.managementToken)} className={primaryButton + " w-full"}>{bookingManagement.manage}</a><CopyManagementLink token={receipt.managementToken} /><p className={styles.note}>{bookingManagement.linkHint}</p></div>
+    <div className={styles.successActions}><a href={managementHref(receipt.managementToken)} className={primaryButton + " w-full"}>{bookingManagement.manage}</a>{receipt.status === "confirmed" && <CalendarDownload receipt={receipt} />}<CopyManagementLink token={receipt.managementToken} /><p className={styles.note}>{bookingManagement.linkHint}</p></div>
     <button type="button" className={secondaryButton + " mt-5 w-full"} onClick={onAnother}>{t.another}</button>
   </section>;
 }
