@@ -19,7 +19,7 @@ import { changeBooking } from "../../src/modules/booking-management/service";
 let database: Awaited<ReturnType<typeof createTestDatabase>>, db: Database, now: Date;
 const secret = randomBytes(32).toString("hex"), appUrl = "http://localhost:3000";
 let messages: LocalMail[], deps: NotificationDependencies;
-beforeAll(async () => { database = await createTestDatabase(); db = drizzle(database.pool, { schema }); });
+beforeAll(async () => { database = await createTestDatabase({ restricted: true }); db = drizzle(database.pool, { schema }); });
 beforeEach(async () => {
   await db.delete(schema.notificationOutbox); messages = []; now = new Date("2027-01-04T06:00:00Z");
   deps = { database: db, appUrl, secret, clock: () => now, sendMail: async mail => { messages.push(mail); } };
@@ -53,9 +53,9 @@ it("rolls back both the booking and notification queue when the enclosing transa
 it("rolls back cancellation if enqueue fails, then accepts an identical retry once", async () => {
   const f = await setup(); const command = { version: 1, requestId: randomUUID(), reason: "Отмена" };
   const actor = { kind: "organizer" as const, organizerId: f.organizer.id, bookingId: f.booking.id };
-  await database.pool.query("ALTER TABLE slotly.notification_outbox ADD CONSTRAINT stage8_reject CHECK (false) NOT VALID");
+  await database.adminPool.query("ALTER TABLE slotly.notification_outbox ADD CONSTRAINT stage8_reject CHECK (false) NOT VALID");
   try { await expect(changeBooking(deps, actor, "cancel", command)).rejects.toThrow(); }
-  finally { await database.pool.query("ALTER TABLE slotly.notification_outbox DROP CONSTRAINT stage8_reject"); }
+  finally { await database.adminPool.query("ALTER TABLE slotly.notification_outbox DROP CONSTRAINT stage8_reject"); }
   expect((await db.select().from(schema.occupancies).where(eq(schema.occupancies.id, f.occupancy.id)))[0]!.releasedAt).toBeNull();
   expect(await rows()).toHaveLength(2);
   await changeBooking(deps, actor, "cancel", command); await changeBooking(deps, actor, "cancel", command);

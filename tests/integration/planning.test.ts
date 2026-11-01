@@ -23,7 +23,7 @@ let db: Database;
 let auth: OrganizerAuth;
 let passwordHash: string;
 beforeAll(async () => {
-  database = await createTestDatabase(); db = drizzle(database.pool, { schema });
+  database = await createTestDatabase({ restricted: true }); db = drizzle(database.pool, { schema });
   passwordHash = await hashPassword(password);
   auth = createOrganizerAuth(db, parseIdentityEnv({ ...loadEnvironment(), NODE_ENV: "test", APP_URL: origin, BETTER_AUTH_SECRET: randomBytes(32).toString("hex"), MAIL_TRANSPORT: "local" }), async () => {});
 });
@@ -69,11 +69,11 @@ it("saves complete schedules atomically and preserves local values across DST da
 });
 it("rolls back all settings if a database write fails after deletion of old windows", async () => {
   const a = await owner(); const initial = await saveSchedule(db, a.id, baseSchedule());
-  await database.pool.query("ALTER TABLE slotly.weekly_windows ADD CONSTRAINT test_reject_window CHECK (start_minute <> 777) NOT VALID");
+  await database.adminPool.query("ALTER TABLE slotly.weekly_windows ADD CONSTRAINT test_reject_window CHECK (start_minute <> 777) NOT VALID");
   try {
     await expect(saveSchedule(db, a.id, { ...initial, timezone: "UTC", weekly: [{ weekday: 2, startMinute: 777, endMinute: 800 }] })).rejects.toBeDefined();
     expect(await getSchedule(db, a.id)).toEqual(initial);
-  } finally { await database.pool.query("ALTER TABLE slotly.weekly_windows DROP CONSTRAINT test_reject_window"); }
+  } finally { await database.adminPool.query("ALTER TABLE slotly.weekly_windows DROP CONSTRAINT test_reject_window"); }
 });
 it("allows only one concurrent creation or edit at a given schedule version", async () => {
   const a = await owner();

@@ -2,11 +2,11 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { readBackupKey } from "../../src/server/operations/backup-format";
 import { OperationError } from "../../src/server/operations/errors";
-import { loadEnvironment } from "./environment";
+import { loadDatabaseEnvironment } from "./database-environment";
 
 export const backupDirectory = resolve(".local/backups");
 export function operationOptions() {
-  const env = loadEnvironment();
+  const env = loadDatabaseEnvironment("admin");
   const key = readBackupKey(process.env.BACKUP_ENCRYPTION_KEY, process.env.BETTER_AUTH_SECRET);
   const localTools = resolve(".local/postgres-tools/bin");
   const binDirectory = process.env.PG_BIN_DIR || (process.platform === "win32" && existsSync(resolve(localTools, "pg_dump.exe")) ? localTools : undefined);

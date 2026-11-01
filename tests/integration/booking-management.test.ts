@@ -21,7 +21,7 @@ import { parseIdentityEnv } from "../../src/server/config/schema";
 
 let database: Awaited<ReturnType<typeof createTestDatabase>>, db: Database, deps: ManagementDependencies, now: Date, auth: OrganizerAuth;
 const secret = randomBytes(32).toString("hex"), origin = "http://localhost:3000";
-beforeAll(async () => { database = await createTestDatabase(); db = drizzle(database.pool, { schema }); deps = { database: db, secret, clock: () => now };
+beforeAll(async () => { database = await createTestDatabase({ restricted: true }); db = drizzle(database.pool, { schema }); deps = { database: db, secret, clock: () => now };
   auth = createOrganizerAuth(db, parseIdentityEnv({ ...loadEnvironment(), NODE_ENV: "test", APP_URL: origin, BETTER_AUTH_SECRET: secret, MAIL_TRANSPORT: "local" }), async () => {});
 });
 beforeEach(async () => { now = new Date("2027-01-04T06:00:00Z"); await db.delete(schema.guestRateLimits); });
@@ -139,21 +139,21 @@ it("lets only one of two bookings move into the same slot", async () => {
 });
 it("rolls back time, version, history and command id if event insertion fails", async () => {
   const f = await setup(); const command = move();
-  await database.pool.query("ALTER TABLE slotly.booking_events ADD CONSTRAINT stage7_reject_event CHECK (type <> 'rescheduled') NOT VALID");
+  await database.adminPool.query("ALTER TABLE slotly.booking_events ADD CONSTRAINT stage7_reject_event CHECK (type <> 'rescheduled') NOT VALID");
   try { await expect(changeBooking(deps, f.actor, "reschedule", command)).rejects.toBeDefined(); }
-  finally { await database.pool.query("ALTER TABLE slotly.booking_events DROP CONSTRAINT stage7_reject_event"); }
+  finally { await database.adminPool.query("ALTER TABLE slotly.booking_events DROP CONSTRAINT stage7_reject_event"); }
   expect((await getGuestBooking(deps, { token: f.token })).version).toBe(1); expect(await events(f.booking.id)).toHaveLength(1);
   expect((await changeBooking(deps, f.actor, "reschedule", command)).version).toBe(2);
 });
 it("maps a last-moment PostgreSQL exclusion conflict and rolls back the injected blocker", async () => {
   const f = await setup();
-  await database.pool.query(`CREATE FUNCTION slotly.stage7_race() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN
+  await database.adminPool.query(`CREATE FUNCTION slotly.stage7_race() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN
     IF OLD.id = '${f.occupancy.id}'::uuid AND NEW.start_at <> OLD.start_at THEN
       INSERT INTO slotly.occupancies(organizer_id,kind,start_at,end_at,busy_start_at,busy_end_at) VALUES(NEW.organizer_id,'manual',NEW.start_at,NEW.end_at,NEW.start_at,NEW.end_at);
     END IF; RETURN NEW; END $body$`);
-  await database.pool.query("CREATE TRIGGER stage7_race BEFORE UPDATE ON slotly.occupancies FOR EACH ROW EXECUTE FUNCTION slotly.stage7_race()");
+  await database.adminPool.query("CREATE TRIGGER stage7_race BEFORE UPDATE ON slotly.occupancies FOR EACH ROW EXECUTE FUNCTION slotly.stage7_race()");
   try { await expect(changeBooking(deps, f.actor, "reschedule", move())).rejects.toMatchObject({ code: "SLOT_UNAVAILABLE" }); }
-  finally { await database.pool.query("DROP TRIGGER stage7_race ON slotly.occupancies"); await database.pool.query("DROP FUNCTION slotly.stage7_race()"); }
+  finally { await database.adminPool.query("DROP TRIGGER stage7_race ON slotly.occupancies"); await database.adminPool.query("DROP FUNCTION slotly.stage7_race()"); }
   expect((await getGuestBooking(deps, { token: f.token })).version).toBe(1);
   expect((await db.select().from(schema.occupancies).where(eq(schema.occupancies.organizerId, f.organizer.id)))).toHaveLength(1);
   expect(await events(f.booking.id)).toHaveLength(1);

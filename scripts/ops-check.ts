@@ -9,6 +9,7 @@ try {
   const database = await inspectDatabase(env, journal.entries.map(e => e.when));
   const backups = await inspectBackups(backupDirectory);
   const issues = [];
+  if (database.privilegedRole) issues.push("RUNTIME_ROLE_PRIVILEGED");
   if (!database.migrationsCurrent) issues.push("MIGRATIONS_PENDING");
   if (!database.queue) issues.push("QUEUE_UNAVAILABLE");
   else {

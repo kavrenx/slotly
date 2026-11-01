@@ -25,7 +25,7 @@ export async function postgresConnection(env: ServerEnv, directory: string) {
   // Do not leak application secrets into client subprocess environments, and
   // do not allow inherited libpq options to redirect or weaken the connection.
   const childEnv: NodeJS.ProcessEnv = { ...Object.fromEntries(Object.entries(process.env).filter(([key]) =>
-    !key.toUpperCase().startsWith("PG") && !["DATABASE_URL", "BETTER_AUTH_SECRET", "BACKUP_ENCRYPTION_KEY"].includes(key.toUpperCase()))), NODE_ENV: env.NODE_ENV };
+    !key.toUpperCase().startsWith("PG") && !/(?:^|_)DATABASE_URL$/iu.test(key) && !["BETTER_AUTH_SECRET", "BACKUP_ENCRYPTION_KEY"].includes(key.toUpperCase()))), NODE_ENV: env.NODE_ENV };
   Object.assign(childEnv, { PGPASSFILE: passfile, PGSSLMODE: env.DATABASE_SSL === "disable" ? "disable" : "verify-full", PGGSSENCMODE: "disable", PGCONNECT_TIMEOUT: "10", PGAPPNAME: "slotly-operations", PGOPTIONS: "-c timezone=UTC" });
   if (env.DATABASE_SSL === "verify-full") childEnv.PGSSLROOTCERT = "system";
   return { env: childEnv, args: ["--host", host, "--port", port, "--username", user, "--no-password"] };

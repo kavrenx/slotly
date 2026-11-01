@@ -1,7 +1,7 @@
 import { defineConfig } from "drizzle-kit";
-import { loadEnvironment } from "./scripts/lib/environment";
+import { loadDatabaseEnvironment } from "./scripts/lib/database-environment";
 
-const env = loadEnvironment();
+const env = loadDatabaseEnvironment("migration");
 
 export default defineConfig({
   dialect: "postgresql",

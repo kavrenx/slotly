@@ -1,15 +1,16 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import type { Pool, PoolClient } from "pg";
-import { loadEnvironment } from "../../scripts/lib/environment";
+import { loadDatabaseEnvironment } from "../../scripts/lib/database-environment";
 import { createDatabasePool } from "../../src/server/db/connection";
+import { configureDatabaseAccess, createDatabaseLogin } from "../../src/server/db/privileges";
 
-export async function createTestDatabase() {
+export async function createTestDatabase(options: { restricted?: boolean } = {}) {
   if (existsSync(".env.local")) process.loadEnvFile(".env.local");
-  const env = loadEnvironment();
+  const env = loadDatabaseEnvironment("admin");
   const url = new URL(env.DATABASE_URL);
   if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || env.NODE_ENV === "production") {
     throw new Error("Integration tests require a local, non-production PostgreSQL server.");
@@ -17,13 +18,21 @@ export async function createTestDatabase() {
   const name = `slotly_test_${randomUUID().replaceAll("-", "")}`;
   const admin = createDatabasePool(env);
   url.pathname = `/${name}`;
-  const pool = createDatabasePool({ ...env, DATABASE_URL: url.toString() });
+  const adminPool = createDatabasePool({ ...env, DATABASE_URL: url.toString() });
+  let pool = adminPool, migrationPool: Pool | undefined;
+  const roles: string[] = [];
   let created = false;
   async function close() {
     await pool.end();
+    if (pool !== adminPool) await adminPool.end();
+    await migrationPool?.end();
     try {
       if (created && /^slotly_test_[a-f0-9]{32}$/.test(name)) {
         await admin.query(`DROP DATABASE "${name}"`);
+      }
+      for (const role of roles.reverse()) {
+        if (!/^slotly_test_(app|migrate)_[a-f0-9]{32}$/u.test(role)) throw new Error("Unsafe test role");
+        await admin.query(`DROP ROLE "${role}"`);
       }
     } finally {
       await admin.end();
@@ -32,8 +41,21 @@ export async function createTestDatabase() {
   try {
     await admin.query(`CREATE DATABASE "${name}"`);
     created = true;
-    await migrate(drizzle(pool), { migrationsFolder: resolve("drizzle") });
-    return { pool, close };
+    if (options.restricted) {
+      const suffix = randomUUID().replaceAll("-", "");
+      const migrationRole = `slotly_test_migrate_${suffix}`, applicationRole = `slotly_test_app_${suffix}`;
+      const migrationPassword = randomBytes(32).toString("hex"), applicationPassword = randomBytes(32).toString("hex");
+      await createDatabaseLogin(admin, migrationRole, migrationPassword); roles.push(migrationRole);
+      await createDatabaseLogin(admin, applicationRole, applicationPassword); roles.push(applicationRole);
+      await admin.query(`GRANT CONNECT, CREATE ON DATABASE "${name}" TO "${migrationRole}"`);
+      const migrationUrl = new URL(url); migrationUrl.username = migrationRole; migrationUrl.password = migrationPassword;
+      migrationPool = createDatabasePool({ ...env, DATABASE_URL: migrationUrl.toString() });
+      await migrate(drizzle(migrationPool), { migrationsFolder: resolve("drizzle") });
+      await configureDatabaseAccess(adminPool, migrationRole, applicationRole);
+      const applicationUrl = new URL(url); applicationUrl.username = applicationRole; applicationUrl.password = applicationPassword;
+      pool = createDatabasePool({ ...env, DATABASE_URL: applicationUrl.toString() });
+    } else await migrate(drizzle(pool), { migrationsFolder: resolve("drizzle") });
+    return { pool, adminPool, migrationPool, close };
   } catch (error) {
     await close();
     throw error;

@@ -10,7 +10,7 @@ import { createTestDatabase, transaction } from "../helpers/database";
 
 let test: Awaited<ReturnType<typeof createTestDatabase>>, db: Database;
 const now = new Date("2027-01-04T10:15:00Z");
-beforeAll(async () => { test = await createTestDatabase(); db = drizzle(test.pool, { schema }); });
+beforeAll(async () => { test = await createTestDatabase({ restricted: true }); db = drizzle(test.pool, { schema }); });
 afterAll(async () => { await test?.close(); });
 
 it("includes ongoing meetings until their exact end, then places them in the past", async () => {

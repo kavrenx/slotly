@@ -18,7 +18,7 @@ let auth: OrganizerAuth;
 const mails: AuthMail[] = [];
 
 beforeAll(async () => {
-  database = await createTestDatabase();
+  database = await createTestDatabase({ restricted: true });
   const env = parseIdentityEnv({ ...loadEnvironment(), NODE_ENV: "test", APP_URL: origin,
     BETTER_AUTH_SECRET: randomBytes(32).toString("hex"), MAIL_TRANSPORT: "local" });
   auth = createOrganizerAuth(drizzle(database.pool, { schema }), env, async (message) => { mails.push(message); });
@@ -172,7 +172,7 @@ it("enforces database rate limits even with spoofed forwarding headers", async (
 
 it("rolls back the user and profile if credential creation fails", async () => {
   const email = `${randomUUID()}@example.invalid`;
-  await database.pool.query("ALTER TABLE slotly.auth_accounts ADD CONSTRAINT test_reject_credentials CHECK (provider_id <> 'credential') NOT VALID");
+  await database.adminPool.query("ALTER TABLE slotly.auth_accounts ADD CONSTRAINT test_reject_credentials CHECK (provider_id <> 'credential') NOT VALID");
   try {
     const response = await post("/sign-up/email", { name: "Test organizer", email, password });
     expect(response.status).toBeGreaterThanOrEqual(400);
@@ -180,7 +180,7 @@ it("rolls back the user and profile if credential creation fails", async () => {
     expect(users.rowCount).toBe(0);
     const orphans = await database.pool.query("SELECT o.id FROM slotly.organizers o LEFT JOIN slotly.auth_users u ON u.id=o.user_id WHERE u.id IS NULL");
     expect(orphans.rowCount).toBe(0);
-  } finally { await database.pool.query("ALTER TABLE slotly.auth_accounts DROP CONSTRAINT test_reject_credentials"); }
+  } finally { await database.adminPool.query("ALTER TABLE slotly.auth_accounts DROP CONSTRAINT test_reject_credentials"); }
 });
 
 it("does not accept a modified signed email token", async () => {

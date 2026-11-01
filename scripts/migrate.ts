@@ -2,9 +2,9 @@ import { resolve } from "node:path";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { createDatabasePool } from "../src/server/db/connection";
-import { loadEnvironment } from "./lib/environment";
+import { loadDatabaseEnvironment } from "./lib/database-environment";
 
-const pool = createDatabasePool(loadEnvironment());
+const pool = createDatabasePool(loadDatabaseEnvironment("migration"));
 try {
   await migrate(drizzle(pool), { migrationsFolder: resolve("drizzle") });
   console.log("Миграции PostgreSQL применены.");

@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createTestDatabase, transaction } from "../helpers/database";
 import { fixture, insertCompleteBooking, moveBooking, cancelBooking } from "../helpers/domain";
-import { loadEnvironment } from "../../scripts/lib/environment";
+import { loadDatabaseEnvironment } from "../../scripts/lib/database-environment";
 import { createBackup, verifyBackup, type BackupOptions } from "../../src/server/operations/backups";
 import { createPrivateWorkspace, removePrivateWorkspace } from "../../src/server/operations/postgres-tools";
 import { hashFile, inspectDatabase } from "../../src/server/operations/diagnostics";
@@ -14,7 +14,7 @@ import { Readable } from "node:stream";
 let test: Awaited<ReturnType<typeof createTestDatabase>>, directory: string, options: BackupOptions;
 beforeAll(async () => {
   test = await createTestDatabase(); directory = await createPrivateWorkspace();
-  const env = loadEnvironment(), url = new URL(env.DATABASE_URL);
+  const env = loadDatabaseEnvironment("admin"), url = new URL(env.DATABASE_URL);
   url.pathname = "/" + (await test.pool.query("select current_database() as name")).rows[0].name;
   const binDirectory = process.env.PG_BIN_DIR || (process.platform === "win32" ? resolve(".local/postgres-tools/bin") : undefined);
   options = { env: { ...env, DATABASE_URL: url.toString() }, key: randomBytes(32), ...(binDirectory ? { binDirectory } : {}) };

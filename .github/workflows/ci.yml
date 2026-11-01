@@ -71,4 +71,10 @@ jobs:
           "$PG_BIN_DIR/pg_restore" --version
       - run: npm run test:integration -- --maxWorkers=1
       - run: npm run build
+      - name: Verify production security headers
+        run: |
+          node scripts/run-app.mjs start > "$RUNNER_TEMP/slotly-smoke.log" 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          npm run security:check
       - run: npm audit --omit=dev --audit-level=high

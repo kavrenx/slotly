@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import EmbeddedPostgres from "embedded-postgres";
-import { loadEnvironment } from "./lib/environment";
+import { loadDatabaseEnvironment } from "./lib/database-environment";
 
-const env = loadEnvironment();
+const env = loadDatabaseEnvironment("admin");
 const url = new URL(env.DATABASE_URL);
 if (env.NODE_ENV === "production" || url.hostname !== "127.0.0.1" || env.DATABASE_SSL !== "disable") {
   throw new Error("db:local работает только с локальным 127.0.0.1 без TLS, вне production.");

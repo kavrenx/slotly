@@ -39,7 +39,12 @@ export async function inspectDatabase(env: ServerEnv, expectedMigrations: number
         greatest(0,extract(epoch from ($1::timestamptz-min(created_at) filter(where sent_at is null and failed_at is null))))::int as "oldestSeconds",
         count(*) filter(where sent_at is null and failed_at is null and locked_until <= $1)::int as "expiredLeases"
         from slotly.notification_outbox`, [now.toISOString()])).rows[0]! : null;
-      const role = await client.query<{ privileged: boolean }>("select rolsuper or rolcreaterole as privileged from pg_roles where rolname=current_user");
+      const role = await client.query<{ privileged: boolean }>(`select rolsuper or rolcreaterole or rolcreatedb or rolreplication or rolbypassrls
+        or has_database_privilege(current_database(),'CREATE') or has_database_privilege(current_database(),'TEMP')
+        or coalesce(has_schema_privilege(to_regnamespace('slotly'),'CREATE'),false) or has_schema_privilege('public','CREATE')
+        or exists(select 1 from pg_auth_members where member=r.oid)
+        or exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('slotly','drizzle') and c.relowner=r.oid)
+        as privileged from pg_roles r where rolname=current_user`);
       await client.query("COMMIT");
       return { available: true, migrationsCurrent, migrationsApplied: rows.length, queue, privilegedRole: role.rows[0]!.privileged };
     } finally { await client.query("ROLLBACK").catch(() => {}); client.release(); }

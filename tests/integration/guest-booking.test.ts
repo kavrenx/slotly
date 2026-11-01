@@ -22,7 +22,7 @@ const secret = randomBytes(32).toString("hex"); const ip = "127.0.0.1"; const or
 let time: Date; let deliveryFails = false;
 const mail = new Map<string, LocalMail>();
 let deps: GuestBookingDependencies;
-beforeAll(async () => { database = await createTestDatabase(); db = drizzle(database.pool, { schema });
+beforeAll(async () => { database = await createTestDatabase({ restricted: true }); db = drizzle(database.pool, { schema });
   deps = { database: db, secret, clock: () => time, sendMail: async (message) => { if (deliveryFails) throw new Error("private-mail-failure"); mail.set(message.messageId!, message); } };
 });
 beforeEach(async () => { time = new Date("2027-01-04T06:00:00Z"); deliveryFails = false; mail.clear(); await db.delete(schema.guestRateLimits); });
@@ -140,24 +140,24 @@ it("rechecks occupied time after issuing a code", async () => {
 });
 it("rolls back the booking, occupancy and code consumption if history insertion fails", async () => {
   const f = await configured(); const challenge = await requestGuestCode(deps, f.page.publicId, input(), ip);
-  await database.pool.query("ALTER TABLE slotly.booking_events ADD CONSTRAINT test_reject_created CHECK (type <> 'created') NOT VALID");
+  await database.adminPool.query("ALTER TABLE slotly.booking_events ADD CONSTRAINT test_reject_created CHECK (type <> 'created') NOT VALID");
   const log = vi.spyOn(console, "error").mockImplementation(() => {});
   try {
     const response = await http(f.page.publicId, "confirm", { challengeId: challenge.challengeId, code: code(challenge) });
     expect(response.status).toBe(503); expect(await response.json()).toEqual({ code: "SERVICE_UNAVAILABLE" });
     expect(await counts(f.organizer.id)).toEqual({ bookings: 0, occupancies: 0, events: 0 });
     expect((await db.select().from(schema.guestChallenges).where(eq(schema.guestChallenges.id, challenge.challengeId)))[0]!.bookingId).toBeNull();
-  } finally { await database.pool.query("ALTER TABLE slotly.booking_events DROP CONSTRAINT test_reject_created"); log.mockRestore(); }
+  } finally { await database.adminPool.query("ALTER TABLE slotly.booking_events DROP CONSTRAINT test_reject_created"); log.mockRestore(); }
   expect((await confirm(f.page.publicId, challenge)).status).toBe("confirmed");
 });
 it("maps a last-moment PostgreSQL exclusion failure and leaves the code unconsumed", async () => {
   const f = await configured(); const challenge = await requestGuestCode(deps, f.page.publicId, input(), ip);
-  await database.pool.query("CREATE FUNCTION slotly.test_race_block() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.kind='booking' THEN INSERT INTO slotly.occupancies(organizer_id,kind,start_at,end_at,busy_start_at,busy_end_at) VALUES (NEW.organizer_id,'manual',NEW.start_at,NEW.end_at,NEW.start_at,NEW.end_at); END IF; RETURN NEW; END; $$");
-  await database.pool.query("CREATE TRIGGER test_race_block BEFORE INSERT ON slotly.occupancies FOR EACH ROW EXECUTE FUNCTION slotly.test_race_block()");
+  await database.adminPool.query("CREATE FUNCTION slotly.test_race_block() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.kind='booking' THEN INSERT INTO slotly.occupancies(organizer_id,kind,start_at,end_at,busy_start_at,busy_end_at) VALUES (NEW.organizer_id,'manual',NEW.start_at,NEW.end_at,NEW.start_at,NEW.end_at); END IF; RETURN NEW; END; $$");
+  await database.adminPool.query("CREATE TRIGGER test_race_block BEFORE INSERT ON slotly.occupancies FOR EACH ROW EXECUTE FUNCTION slotly.test_race_block()");
   try {
     await expect(confirm(f.page.publicId, challenge)).rejects.toMatchObject({ code: "SLOT_UNAVAILABLE", status: 409 });
     expect(await counts(f.organizer.id)).toEqual({ bookings: 0, occupancies: 0, events: 0 });
-  } finally { await database.pool.query("DROP TRIGGER test_race_block ON slotly.occupancies"); await database.pool.query("DROP FUNCTION slotly.test_race_block()"); }
+  } finally { await database.adminPool.query("DROP TRIGGER test_race_block ON slotly.occupancies"); await database.adminPool.query("DROP FUNCTION slotly.test_race_block()"); }
   expect((await confirm(f.page.publicId, challenge)).status).toBe("confirmed");
 });
 it("recovers a failed delivery with the same request, challenge and code", async () => {

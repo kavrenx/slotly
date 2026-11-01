@@ -16,7 +16,7 @@ const now = new Date("2027-01-04T00:00:00Z");
 const query = { date: "2027-01-04", timezone: "UTC" };
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 let db: Database;
-beforeAll(async () => { database = await createTestDatabase(); db = drizzle(database.pool, { schema }); });
+beforeAll(async () => { database = await createTestDatabase({ restricted: true }); db = drizzle(database.pool, { schema }); });
 afterAll(async () => { await database?.close(); });
 async function configured() {
   const f = await fixture(database.pool);
