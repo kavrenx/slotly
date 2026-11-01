@@ -1,0 +1,4 @@
+ALTER TABLE "slotly"."booking_events" ADD COLUMN "request_id" uuid;--> statement-breakpoint
+ALTER TABLE "slotly"."booking_events" ADD COLUMN "request_hash" varchar(64);--> statement-breakpoint
+ALTER TABLE "slotly"."booking_events" ADD CONSTRAINT "booking_events_request_id_unique" UNIQUE("request_id");--> statement-breakpoint
+ALTER TABLE "slotly"."booking_events" ADD CONSTRAINT "booking_events_request" CHECK (("slotly"."booking_events"."request_id" is null) = ("slotly"."booking_events"."request_hash" is null) and ("slotly"."booking_events"."request_hash" is null or "slotly"."booking_events"."request_hash" ~ '^[a-f0-9]{64}$'));

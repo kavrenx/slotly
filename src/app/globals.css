@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-paper: #f7f7f2;
+  --color-ink: #192b27;
+  --color-muted: #52655e;
+  --color-accent: #246750;
+  --color-panel: #eeefe7;
+  --color-line: #d7ddd2;
+  --font-sans: "Segoe UI", "Arial", sans-serif;
+}
+
+body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); }
+::selection { background: #c7ddce; }
+:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 5px; }
+.skip-link { position: fixed; top: 1rem; left: 1rem; z-index: 10; padding: .75rem 1rem; background: var(--color-paper); transform: translateY(-200%); }
+.skip-link:focus { transform: translateY(0); }
+
+.feedback-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: grid-template-rows 240ms ease, opacity 200ms ease, transform 240ms ease;
+}
+.feedback-reveal[data-visible="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+.feedback-message-in { animation: feedback-message-in 220ms ease both; }
+@keyframes feedback-message-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feedback-reveal { transition: none; transform: none; }
+  .feedback-message-in { animation: none; }
+}

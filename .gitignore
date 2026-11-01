@@ -1,0 +1,34 @@
+# Dependencies and generated output
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.turbo/
+next-env.d.ts
+*.tsbuildinfo
+
+# Local database, mailbox, credentials and QA artifacts
+.local/
+.env*
+!.env.example
+*.log
+*.dump
+*.sql.gz
+*.backup
+*.bak
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Tooling and operating systems
+.vercel/
+playwright-report/
+test-results/
+.idea/
+*.swp
+*.swo
+*.tmp
+.DS_Store
+Thumbs.db
