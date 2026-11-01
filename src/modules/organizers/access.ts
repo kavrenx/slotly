@@ -8,7 +8,9 @@ export class IdentityUnavailable extends Error {}
 
 export async function getOrganizerContext(auth: OrganizerAuth, database: NodePgDatabase<typeof schema>, headers: Headers) {
   try {
-    const session = await auth.api.getSession({ headers, query: { disableCookieCache: true } });
+    // Server renders cannot forward refreshed Set-Cookie headers. The mounted
+    // session client renews through the HTTP endpoint, updating DB and cookie together.
+    const session = await auth.api.getSession({ headers, query: { disableCookieCache: true, disableRefresh: true } });
     if (!session?.user.emailVerified) throw new AuthenticationRequired();
     const [organizer] = await database.select({
       id: schema.organizers.id, displayName: schema.organizers.displayName,

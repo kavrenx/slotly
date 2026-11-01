@@ -94,3 +94,50 @@ it("supports a fresh account with no schedule and rejects invalid service filter
   await expect(getBookingList(db, owner!.id, { view: "any", page: -1 }, now)).rejects.toMatchObject({ code: "INVALID_INPUT" });
   await expect(getBookingList(db, owner!.id, { organizerId: randomUUID() }, now)).rejects.toMatchObject({ code: "INVALID_INPUT" });
 });
+
+it("loads selected-day meetings and week indicators from occupancy, excluding cancellations and other owners", async () => {
+  const f = await fixture(test.pool), other = await fixture(test.pool);
+  let movedId: string;
+  await transaction(test.pool, async client => {
+    // Minsk Jan 5 begins Jan 4 21:00Z. Exact-adjacent meetings are excluded.
+    await insertCompleteBooking(client, f, { start: "2027-01-04T20:30:00Z" });
+    const moved = await insertCompleteBooking(client, f, { start: "2027-01-04T21:00:00Z" }); movedId = moved.booking.id;
+    await moveBooking(client, moved.booking.id, moved.occupancy, "2027-01-06T09:00:00Z");
+    await insertCompleteBooking(client, f, { start: "2027-01-05T20:45:00Z" });
+    const cancelled = await insertCompleteBooking(client, f, { start: "2027-01-05T10:00:00Z" });
+    await cancelBooking(client, cancelled.booking.id, cancelled.occupancy);
+    await insertCompleteBooking(client, other, { start: "2027-01-05T12:00:00Z" });
+  });
+  const overview = await getDashboardOverview(db, f.organizer.id, now, { date: "2027-01-05" });
+  expect(overview.week.filtered).toBe(true); expect(overview.week.total).toBe(1); expect(overview.week.meetings).toHaveLength(1);
+  expect(overview.week.days.find(d => d.date === "2027-01-05")!.count).toBe(1);
+  expect(overview.week.days.find(d => d.date === "2027-01-06")!.count).toBe(2); // midnight-crossing + moved
+  const after = await getDashboardOverview(db, f.organizer.id, now, { date: "2027-01-06" });
+  expect(after.week.meetings.map(m => m.id)).toContain(movedId!);
+  const empty = await getDashboardOverview(db, other.organizer.id, now, { date: "2027-01-06" });
+  expect(empty.week.total).toBe(0); expect(empty.week.meetings).toEqual([]);
+});
+
+it("paginates a full selected day, clamps URL pages and keeps the default nearest view", async () => {
+  const f = await fixture(test.pool);
+  await transaction(test.pool, async client => {
+    await client.query("SET LOCAL statement_timeout='30s'");
+    for (let i = 0; i < 23; i++) await insertCompleteBooking(client, f, { start: new Date(Date.parse("2027-01-05T00:00:00Z") + i * 1_800_000).toISOString() });
+  });
+  const first = await getDashboardOverview(db, f.organizer.id, now, { date: "2027-01-05" });
+  const last = await getDashboardOverview(db, f.organizer.id, now, { date: "2027-01-05", dayPage: "999999" });
+  expect(first.week).toMatchObject({ total: 23, totalPages: 2, page: 1 }); expect(first.week.meetings).toHaveLength(20);
+  expect(last.week.page).toBe(2); expect(last.week.meetings).toHaveLength(3); expect(new Set([...first.week.meetings, ...last.week.meetings].map(m => m.id)).size).toBe(23);
+  const nearest = await getDashboardOverview(db, f.organizer.id, now, { date: ["2027-01-05"] });
+  expect(nearest.week.filtered).toBe(false); expect(nearest.week.meetings).toEqual(nearest.next); expect(nearest.next).toHaveLength(3);
+}, 60_000);
+
+it("does not assign meetings to a civil date skipped entirely by a timezone change", async () => {
+  const f = await fixture(test.pool);
+  await test.pool.query("update slotly.schedules set timezone='Pacific/Apia' where id=$1", [f.schedule.id]);
+  await transaction(test.pool, client => insertCompleteBooking(client, f, { start: "2011-12-30T09:45:00Z" }));
+  const skipped = await getDashboardOverview(db, f.organizer.id, now, { date: "2011-12-30" });
+  expect(skipped.week.total).toBe(0); expect(skipped.week.meetings).toEqual([]);
+  expect(skipped.week.days.find(day => day.date === "2011-12-29")!.count).toBe(1);
+  expect(skipped.week.days.find(day => day.date === "2011-12-31")!.count).toBe(1);
+});

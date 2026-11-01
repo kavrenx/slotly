@@ -2,6 +2,31 @@ import { expect, it } from "vitest";
 import { organizerDay, setupProgress } from "./dashboard-service";
 import { readBookingFilters, bookingsHref } from "./dashboard-contract";
 import type { ScheduleData } from "../availability/validation";
+import { dashboardWeek, dashboardDate, dashboardDayPage, dashboardHref } from "./dashboard-week";
+
+it("keeps Monday-first weeks, leap days and year boundaries in the organizer timezone", () => {
+  const week = dashboardWeek(new Date("2026-12-31T23:00:00Z"), "Europe/Minsk");
+  expect(week.today).toBe("2027-01-01"); expect(week.days.map(d => d.date)).toEqual(["2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03"]);
+  expect(dashboardWeek(new Date(), "UTC", "2028-02-29")).toMatchObject({ selectedDate: "2028-02-29", filtered: true, previous: "2028-02-22", next: "2028-03-07" });
+});
+it("uses 23/25-hour civil days in the weekly view across DST", () => {
+  for (const [date, hours] of [["2027-03-14", 23], ["2027-11-07", 25]] as const) {
+    const day = dashboardWeek(new Date(), "America/New_York", date).days.find(d => d.date === date)!;
+    expect(day.end.getTime() - day.start.getTime()).toBe(hours * 3_600_000);
+  }
+});
+it("represents a historical timezone date skipped entirely as an empty interval", () => {
+  const skipped = dashboardWeek(new Date(), "Pacific/Apia", "2011-12-30").days.find(d => d.date === "2011-12-30")!;
+  expect(skipped.start.getTime()).toBe(skipped.end.getTime());
+});
+it("rejects malformed and repeated calendar parameters without normalizing impossible dates", () => {
+  for (const date of ["2027-02-29", "2027-1-01", "2027-01-01T00:00Z", "0000-01-01", ["2027-01-01"], "9999-12-31"]) {
+    expect(dashboardDate(date)).toBe(null); expect(dashboardWeek(new Date("2027-01-01T00:00Z"), "UTC", date).filtered).toBe(false);
+  }
+  expect(dashboardDayPage("999999")).toBe(999999);
+  for (const page of ["0", "-1", "1.5", "1000000", ["2"]]) expect(dashboardDayPage(page)).toBe(1);
+  expect(dashboardHref("2027-01-01", 2)).toBe("/dashboard?date=2027-01-01&dayPage=2"); expect(dashboardHref()).toBe("/dashboard");
+});
 
 it.each([
   ["2027-03-14T12:00:00Z", "2027-03-14T05:00:00.000Z", "2027-03-15T04:00:00.000Z", 23],

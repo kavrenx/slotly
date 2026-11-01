@@ -1,5 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { and, asc, desc, eq, gt, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
 import type { Database } from "../../server/db/types";
 import { bookings, occupancies } from "../../server/db/schema";
 import { validate } from "../../shared/domain-error";
@@ -7,6 +7,7 @@ import { readSchedule } from "../availability/service";
 import type { ScheduleData } from "../availability/validation";
 import { listPages, type PageData } from "../booking-pages/service";
 import { bookingListInput, BOOKINGS_PER_PAGE } from "./dashboard-contract";
+import { dashboardWeek, dashboardDayPage } from "./dashboard-week";
 
 const meetingFields = { id: bookings.id, title: bookings.titleSnapshot, guestName: bookings.guestName, guestEmail: bookings.guestEmail,
   startAt: occupancies.startAt, endAt: occupancies.endAt, cancelledAt: occupancies.releasedAt, timezone: bookings.scheduleTimezoneSnapshot };
@@ -46,7 +47,7 @@ export async function getBookingList(database: Database, organizerId: string, in
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 
-export async function getDashboardOverview(database: Database, organizerId: string, now = new Date()) {
+export async function getDashboardOverview(database: Database, organizerId: string, now = new Date(), selection: { date?: unknown; dayPage?: unknown } = {}) {
   return database.transaction(async tx => {
     const schedule = await readSchedule(tx, organizerId);
     const pages = await listPages(tx, organizerId);
@@ -58,6 +59,20 @@ export async function getDashboardOverview(database: Database, organizerId: stri
     }).from(bookings).innerJoin(occupancies, eq(occupancies.id, bookings.occupancyId)).where(and(owner, isNull(occupancies.releasedAt)));
     const next = await tx.select(meetingFields).from(bookings).innerJoin(occupancies, eq(occupancies.id, bookings.occupancyId))
       .where(and(owner, isNull(occupancies.releasedAt), gt(occupancies.endAt, now))).orderBy(asc(occupancies.startAt), asc(bookings.id)).limit(3);
-    return { schedule, pages, timezone, counts: counts!, next, progress: setupProgress(schedule, pages, now), generatedAt: now };
+    const week = dashboardWeek(now, timezone, selection.date);
+    // Seven aggregate counts, never an unbounded client-side booking download.
+    const weekCounts = await tx.select(Object.fromEntries(week.days.map((d, i) => [`day${i}`,
+      d.end > d.start ? sql<number>`count(*) filter (where ${occupancies.startAt} < ${d.end.toISOString()}::timestamptz and ${occupancies.endAt} > ${d.start.toISOString()}::timestamptz)::int` : sql<number>`0::int`,
+    ]))).from(bookings).innerJoin(occupancies, eq(occupancies.id, bookings.occupancyId)).where(and(owner, isNull(occupancies.releasedAt)));
+    const days = week.days.map((d, i) => ({ date: d.date, count: Number(weekCounts[0]![`day${i}`]) }));
+    const selectedDay = week.days.find(d => d.date === week.selectedDate)!;
+    const dayTotal = days.find(d => d.date === week.selectedDate)!.count;
+    const totalPages = Math.max(1, Math.ceil(dayTotal / BOOKINGS_PER_PAGE));
+    const page = Math.min(dashboardDayPage(selection.dayPage), totalPages);
+    const meetings = week.filtered ? selectedDay.end <= selectedDay.start ? [] : await tx.select(meetingFields).from(bookings).innerJoin(occupancies, eq(occupancies.id, bookings.occupancyId))
+      .where(and(owner, isNull(occupancies.releasedAt), lt(occupancies.startAt, selectedDay.end), gt(occupancies.endAt, selectedDay.start)))
+      .orderBy(asc(occupancies.startAt), asc(bookings.id)).limit(BOOKINGS_PER_PAGE).offset((page - 1) * BOOKINGS_PER_PAGE) : next;
+    return { schedule, pages, timezone, counts: counts!, next, progress: setupProgress(schedule, pages, now), generatedAt: now,
+      week: { today: week.today, selectedDate: week.selectedDate, filtered: week.filtered, previous: week.previous, next: week.next, days, meetings, total: dayTotal, page, totalPages } };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }

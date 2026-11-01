@@ -8,6 +8,8 @@ import { FooterIcon } from "@/components/landing/footer-icon";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SectionLink } from "@/components/ui/section-link";
+import { redirect } from "next/navigation";
+import { getOptionalOrganizer } from "@/modules/organizers/server";
 import "./landing.css";
 
 export const metadata: Metadata = {
@@ -15,7 +17,8 @@ export const metadata: Metadata = {
   description: "Бесплатная запись на встречи по ссылке. Настройте расписание, поделитесь страницей и позвольте участникам выбрать удобное время.",
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  if (await getOptionalOrganizer()) redirect("/dashboard");
   return (
     <div className="landing">
       <SectionLink section="main" className="skip-link">Перейти к содержимому</SectionLink>

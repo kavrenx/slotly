@@ -11,7 +11,7 @@ import { getDatabase } from "@/server/db/client";
 export default async function BookingsPage({ searchParams }: PageProps<"/dashboard/bookings">) {
   const owner = await requireOrganizer();
   const result = await getBookingList(getDatabase(), owner.id, readBookingFilters(await searchParams));
-  return <div className="max-w-4xl">
+  return <div className="workspace-page">
     <p className="text-xs font-semibold tracking-widest text-accent uppercase">{t.meetingsTitle}</p>
     <div className="mt-3 flex flex-wrap items-center justify-between gap-4"><h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{t.views[result.view]}</h1><RefreshDashboard /></div>
     <p className="mt-4 max-w-2xl text-sm leading-7 text-muted">{t.meetingsHint}</p>

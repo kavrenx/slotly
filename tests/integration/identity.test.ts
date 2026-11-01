@@ -73,6 +73,29 @@ function context(sessionCookie: string, extra: Record<string, string> = {}) {
   return getOrganizerContext(auth, drizzle(database.pool, { schema }), new Headers({ cookie: sessionCookie, ...extra }));
 }
 
+it("remembers login with an HttpOnly seven-day cookie and supports a browser-session-only login", async () => {
+  const { email } = await register(true);
+  const remembered = await post("/sign-in/email", { email, password, rememberMe: true });
+  const persistent = remembered.headers.getSetCookie().find(value => value.startsWith("slotly.session_token="))!;
+  expect(persistent).toContain("Max-Age=604800"); expect(persistent).toMatch(/HttpOnly/iu); expect(persistent).toMatch(/SameSite=Lax/iu); expect(persistent).not.toMatch(/Domain=/iu);
+  expect((await context(cookie(remembered))).email).toBe(email);
+  const temporary = await post("/sign-in/email", { email, password, rememberMe: false });
+  const sessionOnly = temporary.headers.getSetCookie().find(value => value.startsWith("slotly.session_token="))!;
+  expect(sessionOnly).toBeTruthy(); expect(sessionOnly).not.toMatch(/Max-Age=|Expires=/iu); expect(sessionOnly).toMatch(/HttpOnly/iu);
+  expect((await context(cookie(temporary))).email).toBe(email);
+});
+
+it("does not renew in a server read; renews the database expiry and remembered cookie together through HTTP", async () => {
+  const { email } = await register(true);
+  const sessionCookie = cookie(await post("/sign-in/email", { email, password, rememberMe: true }));
+  await database.pool.query("update slotly.auth_sessions set expires_at=now()+interval '5 days',updated_at=now()-interval '2 days' where user_id=(select id from slotly.auth_users where email=$1)", [email]);
+  const expiry = async () => (await database.pool.query("select expires_at from slotly.auth_sessions where user_id=(select id from slotly.auth_users where email=$1)", [email])).rows[0].expires_at as Date;
+  const before = await expiry(); await context(sessionCookie); expect(await expiry()).toEqual(before);
+  const response = await handleIdentityRequest(auth, new Request(origin + "/api/auth/get-session", { headers: { cookie: sessionCookie } }), origin);
+  expect(response.status).toBe(200); expect(response.headers.getSetCookie().join(";")).toContain("Max-Age=604800");
+  expect((await expiry()).getTime() - before.getTime()).toBeGreaterThan(86_400_000);
+});
+
 it("creates one organizer atomically and stores a password hash without issuing an unverified session", async () => {
   const { email, response } = await register();
   expect(cookie(response)).not.toContain("session_token");

@@ -58,7 +58,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       const result = mode === "register"
         ? await authClient.signUp.email({ name, email, password })
         : mode === "login"
-          ? await authClient.signIn.email({ email, password })
+          ? await authClient.signIn.email({ email, password, rememberMe: data.get("rememberMe") === "on" })
           : mode === "forgot"
             ? await authClient.requestPasswordReset({ email, redirectTo: new URL("/reset-password", window.location.origin).toString() })
             : mode === "resend"
@@ -120,6 +120,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               </div>
             </div>
           </div>}
+          {mode === "login" && <div><label className="flex cursor-pointer items-center gap-3 text-sm"><input type="checkbox" name="rememberMe" defaultChecked className="size-4 shrink-0 accent-accent" aria-describedby="remember-hint" />{t.rememberMe}</label><p id="remember-hint" className="mt-2 pl-7 text-xs leading-5 text-muted">{t.rememberHint}</p></div>}
           {error && <p key={error} role="alert" className="feedback-message-in rounded-xl border border-red-300 bg-red-50 p-4 text-sm leading-6 text-red-900">{error}</p>}
           <button disabled={pending} className="w-full rounded-xl bg-accent px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-ink disabled:cursor-wait disabled:opacity-60">{pending ? t.pending : t.buttons[mode]}</button>
         </form>
