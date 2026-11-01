@@ -6,6 +6,7 @@ import { renderLocalMailbox } from "../src/server/mail/view";
 
 loadEnvironment();
 const env = parseIdentityEnv(process.env);
+if (env.MAIL_TRANSPORT !== "local") throw new Error("mail:local доступна только при MAIL_TRANSPORT=local");
 
 const server = createServer(async (request, response) => {
   response.setHeader("Cache-Control", "no-store");

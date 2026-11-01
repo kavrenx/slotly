@@ -96,6 +96,9 @@ PostgreSQL и локальной почте.
 миграций и администратора. Затем перезапустите приложение.
 [Права PostgreSQL и CSP](docs/security.md).
 
+Готов настраиваемый SMTP-транспорт, локально он выключен. `npm run mail:check`
+проверяет выбранный транспорт без отправки письма; [настройка и ограничения](docs/mail.md).
+
 ## Стек и устройство
 
 Next.js · React · TypeScript · Tailwind CSS · PostgreSQL · Drizzle · Better Auth.
@@ -127,6 +130,7 @@ tests/               интеграции PostgreSQL и фикстуры
 | Обзор и списки | [Кабинет](docs/dashboard.md) |
 | Копии, восстановление и диагностика | [Эксплуатация](docs/operations.md) |
 | Роли PostgreSQL и защитные заголовки | [Безопасность](docs/security.md) |
+| Локальная почта и SMTP | [Почтовый транспорт](docs/mail.md) |
 
 Локальные настройки, база, письма, скриншоты QA и сборки исключены из Git.
 О подготовке изменений — в [CONTRIBUTING](CONTRIBUTING.md), о сообщениях

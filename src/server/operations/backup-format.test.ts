@@ -58,11 +58,12 @@ it("requires an independent 32-byte backup key", () => {
   for (const value of [undefined, "replace-with-backup-encryption-key", "short", key.toString("hex")]) expect(() => readBackupKey(value, key.toString("hex"))).toThrow();
 });
 it("keeps credentials out of args and escapes the temporary pgpass file", async () => {
-  for (const name of ["ADMIN_DATABASE_URL", "MIGRATION_DATABASE_URL", "RUNTIME_DATABASE_URL"]) vi.stubEnv(name, "operator-only-credential");
+  for (const name of ["ADMIN_DATABASE_URL", "MIGRATION_DATABASE_URL", "RUNTIME_DATABASE_URL", "SMTP_PASSWORD"]) vi.stubEnv(name, "operator-only-credential");
   const password = "abc:de\\f", env = { NODE_ENV: "test" as const, APP_URL: "http://localhost:3000", DATABASE_SSL: "disable" as const, DATABASE_URL: `postgresql://slotly:${encodeURIComponent(password)}@127.0.0.1:54329/slotly` };
   const connection = await postgresConnection(env, directory);
   expect(connection.args.join(" ")).not.toContain(password); expect(connection.env.PGPASSWORD).toBeUndefined();
   expect(connection.env.DATABASE_URL).toBeUndefined(); expect(connection.env.BACKUP_ENCRYPTION_KEY).toBeUndefined(); expect(connection.env.BETTER_AUTH_SECRET).toBeUndefined();
   expect(connection.env.ADMIN_DATABASE_URL).toBeUndefined(); expect(connection.env.MIGRATION_DATABASE_URL).toBeUndefined(); expect(connection.env.RUNTIME_DATABASE_URL).toBeUndefined();
+  expect(connection.env.SMTP_PASSWORD).toBeUndefined();
   expect(await readFile(connection.env.PGPASSFILE!, "utf8")).toBe("127.0.0.1:54329:*:slotly:abc\\:de\\\\f\n");
 });

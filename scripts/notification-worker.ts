@@ -4,11 +4,12 @@ import { loadEnvironment } from "./lib/environment";
 import { parseIdentityEnv } from "../src/server/config/schema";
 import { createDatabasePool } from "../src/server/db/connection";
 import * as schema from "../src/server/db/schema";
-import { sendLocalMail } from "../src/server/mail/local";
+import { createMailDelivery } from "../src/server/mail/delivery";
 import { deliverNextNotification, notificationQueueStatus, retryFailedNotifications } from "../src/modules/notifications/worker";
 
 loadEnvironment();
 const env = parseIdentityEnv(process.env);
+const mail = createMailDelivery(env.MAIL_CONFIG, env.APP_URL);
 const pool = createDatabasePool(env);
 const database = drizzle(pool, { schema });
 const options = process.argv.slice(2);
@@ -22,11 +23,11 @@ try {
   if (options.includes("--status")) console.log(await notificationQueueStatus(database));
   else if (options.includes("--retry-failed")) console.log(`Возвращено в очередь: ${(await retryFailedNotifications(database)).length}.`);
   else {
-    console.log("[notifications] Обработчик запущен. Письма сохраняются только в локальной почте.");
+    console.log(env.MAIL_TRANSPORT === "local" ? "[notifications] Обработчик запущен. Письма сохраняются только в локальной почте." : "[notifications] Обработчик запущен. Доставка через SMTP.");
     let processed = 0;
     while (!controller.signal.aborted) {
       try {
-        const result = await deliverNextNotification({ database, appUrl: env.APP_URL, secret: env.BETTER_AUTH_SECRET, sendMail: sendLocalMail });
+        const result = await deliverNextNotification({ database, appUrl: env.APP_URL, secret: env.BETTER_AUTH_SECRET, sendMail: mail.sendMail });
         if (result !== "idle") { processed++; console.log(`[notifications] ${result}`); }
         if (options.includes("--once") && (result === "idle" || processed >= 100)) break;
         if (result === "idle") await setTimeout(1000, undefined, { signal: controller.signal });
@@ -39,4 +40,4 @@ try {
     }
   }
 } catch { console.error("[notifications] Команда не выполнена; подробности скрыты."); process.exitCode = 1; }
-finally { await pool.end(); }
+finally { mail.close(); await pool.end(); }

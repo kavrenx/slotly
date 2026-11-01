@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseMailConfig } from "../mail/config";
 
 const isLoopback = (hostname: string) =>
   ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
@@ -69,13 +70,8 @@ export function parseIdentityEnv(input: Record<string, string | undefined>) {
   if (!secret || secret.length < 32 || secret === "replace-with-random-secret") {
     throw new Error("BETTER_AUTH_SECRET: нужен случайный секрет не короче 32 символов; выполните npm run setup");
   }
-  if (input.MAIL_TRANSPORT !== "local") {
-    throw new Error("MAIL_TRANSPORT: на этом этапе поддерживается только локальный перехватчик");
-  }
-  if (!isLoopback(new URL(base.APP_URL).hostname)) {
-    throw new Error("MAIL_TRANSPORT: локальная доставка разрешена только для loopback APP_URL");
-  }
-  return { ...base, BETTER_AUTH_SECRET: secret, MAIL_TRANSPORT: "local" as const };
+  const mail = parseMailConfig(input, base.APP_URL);
+  return { ...base, BETTER_AUTH_SECRET: secret, MAIL_TRANSPORT: mail.transport, MAIL_CONFIG: mail };
 }
 
 export type IdentityEnv = ReturnType<typeof parseIdentityEnv>;

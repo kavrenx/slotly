@@ -52,6 +52,7 @@ jobs:
       - run: npm ci
       - run: npm run setup
       - run: npm run env:check
+      - run: npm run mail:check
       - run: npm run repo:check
       - run: npm run lint
       - run: npm run typecheck

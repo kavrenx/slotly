@@ -2,9 +2,9 @@ import "server-only";
 import { getIdentityEnv } from "../../server/config/env";
 import { getDatabase } from "../../server/db/client";
 import { createOrganizerAuth } from "./auth";
-import { sendLocalAuthMail } from "./mail";
+import { getMailDelivery } from "../../server/mail/server";
 
 const globalIdentity = globalThis as typeof globalThis & { slotlyAuth?: ReturnType<typeof createOrganizerAuth> };
 export function getAuth() {
-  return globalIdentity.slotlyAuth ??= createOrganizerAuth(getDatabase(), getIdentityEnv(), sendLocalAuthMail);
+  return globalIdentity.slotlyAuth ??= createOrganizerAuth(getDatabase(), getIdentityEnv(), getMailDelivery().sendMail);
 }

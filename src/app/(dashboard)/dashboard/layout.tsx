@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/ui/brand-mark";
+import { SectionLink } from "@/components/ui/section-link";
 import { SignOut } from "@/modules/identity/components/sign-out";
 import { DashboardNav } from "@/modules/organizers/components/dashboard-nav";
 import { requireOrganizer } from "@/modules/organizers/server";
@@ -7,7 +8,7 @@ import { requireOrganizer } from "@/modules/organizers/server";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const organizer = await requireOrganizer();
   return <div className="mx-auto min-h-svh max-w-[1440px] px-4 sm:px-8 lg:px-12">
-    <a className="skip-link" href="#dashboard-main">Перейти к содержимому</a>
+    <SectionLink className="skip-link" section="dashboard-main">Перейти к содержимому</SectionLink>
     <header className="flex min-h-24 items-center justify-between gap-4 border-b border-line py-5">
       <Link href="/dashboard" className="inline-flex items-center gap-2.5 text-2xl font-semibold tracking-tight text-accent"><BrandMark />Slotly</Link>
       <div className="flex items-center gap-4"><span className="hidden max-w-64 truncate text-sm text-muted sm:block">{organizer.displayName}</span><SignOut /></div>
@@ -18,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <DashboardNav />
         <p className="mt-16 hidden px-4 text-xs leading-6 text-muted md:block">Ваше время.<br />Ваши правила.</p>
       </aside>
-      <main id="dashboard-main" className="min-w-0 py-8 md:pl-8 lg:py-10 lg:pl-0">{children}</main>
+      <main id="dashboard-main" tabIndex={-1} className="min-w-0 py-8 md:pl-8 lg:py-10 lg:pl-0">{children}</main>
     </div>
   </div>;
 }

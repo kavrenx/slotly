@@ -7,6 +7,7 @@ import { Icon } from "@/components/landing/icon";
 import { FooterIcon } from "@/components/landing/footer-icon";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SectionLink } from "@/components/ui/section-link";
 import "./landing.css";
 
 export const metadata: Metadata = {
@@ -17,17 +18,17 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <div className="landing">
-      <a href="#main" className="skip-link">Перейти к содержимому</a>
+      <SectionLink section="main" className="skip-link">Перейти к содержимому</SectionLink>
       <header className="landing-header landing-container">
         <Link href="/" aria-label="Slotly — главная" className="landing-brand">
           <BrandMark />Slotly
         </Link>
-        <nav aria-label="О продукте" className="landing-nav">{t.nav.map(item => <a key={item.href} href={item.href}>{item.label}</a>)}</nav>
+        <nav aria-label="О продукте" className="landing-nav">{t.nav.map(item => <SectionLink key={item.href} section={item.href.slice(1)}>{item.label}</SectionLink>)}</nav>
         <nav aria-label="Аккаунт" className="landing-account">
           <Link href="/login">{t.login}</Link><Link href="/register" className="landing-button landing-button-small">{t.startShort}<Icon name="arrow" /></Link>
         </nav>
       </header>
-      <main id="main">
+      <main id="main" tabIndex={-1}>
         <section className="landing-hero landing-container" aria-labelledby="intro-title">
           <BookingDemo>
           <div className="landing-hero-copy"><h1 id="intro-title">{t.title[0]}<br /><span>{t.title[1]}</span></h1><p className="landing-hero-description">{t.description}</p><div className="landing-hero-actions"><Link href="/register" className="landing-button">{t.start}<Icon name="arrow" /></Link><DemoButton /></div><ul className="landing-promises">{t.promises.map(promise => <li key={promise}><Icon name="check" />{promise}</li>)}</ul></div>
@@ -48,7 +49,7 @@ export default function HomePage() {
           </div>
           <div className="landing-footer-links">
             <nav aria-label="Ваш Slotly"><h2>{t.footer.account}</h2><Link href="/register">{t.footer.register}</Link><Link href="/dashboard">{t.footer.dashboard}</Link></nav>
-            <nav aria-label="О проекте"><h2>{t.footer.about}</h2><a href="#development">{t.footer.development}</a><span className="landing-footer-status"><i />{t.footer.status}</span></nav>
+            <nav aria-label="О проекте"><h2>{t.footer.about}</h2><SectionLink section="development">{t.footer.development}</SectionLink><span className="landing-footer-status"><i />{t.footer.status}</span></nav>
           </div>
           <div className="landing-footer-socials" role="group" aria-label={t.footer.socialLabel}>
             <button type="button" disabled aria-label={`GitHub — ${t.footer.comingSoon}`} title={`GitHub — ${t.footer.comingSoon}`}><FooterIcon name="github" /></button>
