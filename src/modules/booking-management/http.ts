@@ -2,6 +2,7 @@ import type { OrganizerAuth } from "../identity/auth";
 import { AuthenticationRequired, getOrganizerContext } from "../organizers/access";
 import { spendGuestLimit, GuestRateLimit } from "../guest-booking/limits";
 import { readLimitedBody } from "../../server/security/body";
+import { resolveClientIp, clientIpBucket } from "../../server/security/client-ip";
 import { DomainError, validate } from "../../shared/domain-error";
 import { guestCancelInput, guestRescheduleInput, managementSlotsInput } from "./contract";
 import { changeBooking, getGuestBooking, getManagedBooking, getRescheduleSlots, type ManagementDependencies } from "./service";
@@ -26,7 +27,8 @@ export async function handleGuestManagement(deps: ManagementDependencies, reques
     if (request.method !== "POST") return respond({ code: "METHOD_NOT_ALLOWED" }, 405);
     const input = await body(request, appUrl);
     // Loopback deployment only. Forwarding headers never establish a trusted IP.
-    const limit = await spendGuestLimit(deps.database, deps.secret, "management-ip:127.0.0.1", 120, 600, (deps.clock ?? (() => new Date()))()); if (limit) throw limit;
+    const ip = clientIpBucket(resolveClientIp(request.headers, appUrl));
+    const limit = await spendGuestLimit(deps.database, deps.secret, `management-ip:${ip}`, 120, 600, (deps.clock ?? (() => new Date()))()); if (limit) throw limit;
     if (operation === "read") return respond(await getGuestBooking(deps, input));
     if (operation === "slots") { const { token, ...query } = validate(managementSlotsInput, input); return respond(await getRescheduleSlots(deps, { kind: "guest", token }, query)); }
     if (operation === "cancel") { const { token, ...command } = validate(guestCancelInput, input); return respond(await changeBooking(deps, { kind: "guest", token }, "cancel", command)); }

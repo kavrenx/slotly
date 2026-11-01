@@ -33,9 +33,10 @@ export async function inspectDatabase(env: ServerEnv, expectedMigrations: number
       const objects = await client.query<{ migrations: string | null; outbox: string | null }>("select to_regclass('drizzle.__drizzle_migrations')::text as migrations,to_regclass('slotly.notification_outbox')::text as outbox");
       const rows = objects.rows[0]!.migrations ? (await client.query<{ created_at: string }>("select created_at from drizzle.__drizzle_migrations order by created_at")).rows : [];
       const migrationsCurrent = JSON.stringify(rows.map(r => Number(r.created_at))) === JSON.stringify(expectedMigrations);
-      const queue = objects.rows[0]!.outbox ? (await client.query<{ pending: number; failed: number; oldestSeconds: number | null; expiredLeases: number }>(`select
+      const queue = objects.rows[0]!.outbox ? (await client.query<{ pending: number; failed: number; budgetDeferred: number; oldestSeconds: number | null; expiredLeases: number }>(`select
         count(*) filter(where sent_at is null and failed_at is null)::int as pending,
         count(*) filter(where failed_at is not null)::int as failed,
+        count(*) filter(where sent_at is null and failed_at is null and last_error='MAIL_RATE_LIMITED')::int as "budgetDeferred",
         greatest(0,extract(epoch from ($1::timestamptz-min(created_at) filter(where sent_at is null and failed_at is null))))::int as "oldestSeconds",
         count(*) filter(where sent_at is null and failed_at is null and locked_until <= $1)::int as "expiredLeases"
         from slotly.notification_outbox`, [now.toISOString()])).rows[0]! : null;

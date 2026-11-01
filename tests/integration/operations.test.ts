@@ -33,7 +33,7 @@ it("backs up and restores all application tables, migrations and history without
   const before = await test.pool.query("select to_jsonb(b) as booking from slotly.bookings b order by id");
   const databases = await restoreDatabases(); const backup = await createBackup(options, directory);
   expect(backup.bytes).toBeGreaterThan(100);
-  expect(await verifyBackup(options, backup.path)).toMatchObject({ verified: true, tablesChecked: 18, migrationsChecked: 8, sha256: await hashFile(backup.path) });
+  expect(await verifyBackup(options, backup.path)).toMatchObject({ verified: true, tablesChecked: 19, migrationsChecked: 9, sha256: await hashFile(backup.path) });
   expect(await restoreDatabases()).toEqual(databases); expect((await test.pool.query("select to_jsonb(b) as booking from slotly.bookings b order by id")).rows).toEqual(before.rows);
 }, 60_000);
 it("rejects damaged archives and a wrong key before restoring", async () => {
@@ -68,7 +68,7 @@ it("uses one exported snapshot even when a writer commits during backup", async 
 it("reports migration drift and queue problems without exposing recipients", async () => {
   const journal = JSON.parse(await readFile("drizzle/meta/_journal.json", "utf8")) as { entries: { when: number }[] };
   const status = await inspectDatabase(options.env, journal.entries.map(e => e.when));
-  expect(status).toMatchObject({ available: true, migrationsCurrent: true, migrationsApplied: 8 }); expect(status.queue!.pending).toBeGreaterThan(0);
+  expect(status).toMatchObject({ available: true, migrationsCurrent: true, migrationsApplied: 9 }); expect(status.queue!.pending).toBeGreaterThan(0);
   expect(JSON.stringify(status)).not.toContain("example.invalid");
   expect((await inspectDatabase(options.env, [1])).migrationsCurrent).toBe(false);
 });

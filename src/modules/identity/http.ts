@@ -1,18 +1,25 @@
 import type { OrganizerAuth } from "./auth";
 import { readLimitedBody } from "../../server/security/body";
+import { resolveClientIp } from "../../server/security/client-ip";
+import { MailBudgetExceeded } from "../../server/mail/limits";
+import { emailInput } from "./validation";
 export { readLimitedBody } from "../../server/security/body";
 
-export async function handleIdentityRequest(auth: OrganizerAuth, request: Request, appUrl: string) {
+export async function handleIdentityRequest(auth: OrganizerAuth, request: Request, appUrl: string, options: { beforeMailRequest?: (recipient: string, clientIp: string) => Promise<void> } = {}) {
   if (request.method === "POST" && request.headers.get("origin") !== appUrl) {
     return Response.json({ code: "INVALID_ORIGIN" }, { status: 403 });
   }
   const size = Number(request.headers.get("content-length") ?? 0);
   if (size > 16_384) return Response.json({ code: "BODY_TOO_LARGE" }, { status: 413 });
   const headers = new Headers(request.headers);
-  // Local-only auth transport. Public proxy/IP trust must be configured before a pilot.
+  let ip: string;
+  try { ip = resolveClientIp(request.headers, appUrl); }
+  catch { return Response.json({ code: "CLIENT_IP_UNAVAILABLE" }, { status: 503, headers: { "Cache-Control": "no-store" } }); }
+  // Only the application can populate Better Auth's internal trusted header.
   headers.delete("x-forwarded-for");
   headers.delete("x-real-ip");
-  headers.set("x-slotly-client-ip", "127.0.0.1");
+  headers.delete("forwarded");
+  headers.set("x-slotly-client-ip", ip);
   let body: string | undefined;
   if (request.method === "POST") {
     if (!request.headers.get("content-type")?.startsWith("application/json")) {
@@ -22,6 +29,20 @@ export async function handleIdentityRequest(auth: OrganizerAuth, request: Reques
     if (input === null) return Response.json({ code: "BODY_TOO_LARGE" }, { status: 413 });
     body = input;
     headers.delete("content-length");
+  }
+  let path = "";
+  try { path = decodeURIComponent(new URL(request.url).pathname).replace(/^\/api\/auth/u, "").replace(/\/+$/u, ""); } catch { /* Better Auth rejects invalid paths. */ }
+  if (body && options.beforeMailRequest && ["/sign-up/email", "/request-password-reset", "/send-verification-email"].includes(path)) {
+    let recipient: unknown;
+    try { recipient = (JSON.parse(body) as { email?: unknown }).email; } catch { /* Better Auth validates malformed JSON. */ }
+    const parsed = emailInput.safeParse(typeof recipient === "string" ? recipient.trim().toLowerCase() : recipient);
+    if (parsed.success) {
+      try { await options.beforeMailRequest(parsed.data, ip); }
+      catch (error) {
+        if (error instanceof MailBudgetExceeded) return Response.json({ code: "TOO_MANY_REQUESTS" }, { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(error.retryAfter) } });
+        return Response.json({ code: "SERVICE_UNAVAILABLE" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+      }
+    }
   }
   const forwarded = new Request(request.url, { method: request.method, headers, ...(body !== undefined ? { body } : {}) });
   try {

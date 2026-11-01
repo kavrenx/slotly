@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { MailBudgetExceeded } from "../../src/server/mail/limits";
 import * as schema from "../../src/server/db/schema";
 import { parseIdentityEnv } from "../../src/server/config/schema";
 import { createOrganizerAuth, type OrganizerAuth } from "../../src/modules/identity/auth";
@@ -30,6 +31,19 @@ function request(path: string, body: unknown, extraHeaders: Record<string, strin
   return new Request(origin + "/api/auth" + path, { method: "POST",
     headers: { origin, "content-type": "application/json", ...extraHeaders }, body: JSON.stringify(body) });
 }
+
+it("keeps reset responses identical for known and unknown accounts when outbound mail is limited", async () => {
+  const { email } = await register(true);
+  const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    const limited = createOrganizerAuth(drizzle(database.pool, { schema }), parseIdentityEnv({ ...loadEnvironment(), NODE_ENV: "test", APP_URL: origin,
+      BETTER_AUTH_SECRET: randomBytes(32).toString("hex"), MAIL_TRANSPORT: "local" }), async () => { throw new MailBudgetExceeded(3600); });
+    const known = await handleIdentityRequest(limited, request("/request-password-reset", { email }), origin);
+    const missing = await handleIdentityRequest(limited, request("/request-password-reset", { email: `${randomUUID()}@example.invalid` }), origin);
+    expect(known.status).toBe(200); expect(missing.status).toBe(200); expect(await known.json()).toEqual(await missing.json());
+    expect(warning).toHaveBeenCalled(); expect(JSON.stringify(warning.mock.calls)).not.toContain(email);
+  } finally { warning.mockRestore(); }
+});
 function post(path: string, body: unknown, extraHeaders?: Record<string, string>) {
   return handleIdentityRequest(auth, request(path, body, extraHeaders), origin);
 }

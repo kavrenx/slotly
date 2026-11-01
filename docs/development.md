@@ -29,6 +29,7 @@ SCRAM, UTF-8 и UTC. Каталог данных — `.local/postgres`.
 | `DATABASE_SSL` | `disable` для локальной базы, `verify-full` для проверяемого TLS |
 | `BETTER_AUTH_SECRET` | Случайный секрет не короче 32 символов |
 | `MAIL_TRANSPORT` | `local` для loopback APP_URL; `smtp` требует HTTPS и SMTP-реквизиты |
+| `CLIENT_IP_HEADER` | Обязателен для публичного APP_URL; один заголовок доверенного прокси |
 | `BACKUP_ENCRYPTION_KEY` | Отдельный ключ 32 байта в hex для резервных копий |
 | `PG_BIN_DIR` | Необязательный каталог клиентских `pg_dump` и `pg_restore` версии 18 |
 

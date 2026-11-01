@@ -7,8 +7,18 @@ import type { AuthMail } from "./mail";
 import { getPasswordIssues, organizerName } from "./validation";
 import { identity } from "../../i18n/messages/ru/identity";
 import { APIError, createAuthMiddleware } from "better-auth/api";
+import { MailBudgetExceeded } from "../../server/mail/limits";
 
 export function createOrganizerAuth(database: NodePgDatabase<typeof schema>, env: IdentityEnv, sendMail: (message: AuthMail) => Promise<void>) {
+  async function deliver(message: AuthMail) {
+    try { await sendMail(message); }
+    catch (error) {
+      // Public verification/reset responses must not reveal account existence
+      // through an outbound budget that only known recipients would consume.
+      if (!(error instanceof MailBudgetExceeded)) throw error;
+      console.warn("[identity] Письмо не отправлено: достигнут лимит почты; данные скрыты.");
+    }
+  }
   function name(value: unknown) {
     const parsed = organizerName.safeParse(value);
     if (!parsed.success) throw new APIError("BAD_REQUEST", { code: "INVALID_NAME", message: "Имя должно содержать от 1 до 100 символов." });
@@ -33,7 +43,7 @@ export function createOrganizerAuth(database: NodePgDatabase<typeof schema>, env
       minPasswordLength: 10, maxPasswordLength: 128,
       revokeSessionsOnPasswordReset: true, resetPasswordTokenExpiresIn: 1800,
       async sendResetPassword({ user, token }) {
-        await sendMail({ to: user.email, subject: "Восстановление доступа к Slotly",
+        await deliver({ to: user.email, subject: "Восстановление доступа к Slotly",
           text: "Чтобы задать новый пароль, откройте ссылку. Она действует 30 минут. Если вы не запрашивали смену пароля, проигнорируйте письмо.",
           actionUrl: actionUrl("/reset-password", token) });
       },
@@ -41,7 +51,7 @@ export function createOrganizerAuth(database: NodePgDatabase<typeof schema>, env
     emailVerification: {
       sendOnSignUp: true, sendOnSignIn: false, autoSignInAfterVerification: false, expiresIn: 3600,
       async sendVerificationEmail({ user, token }) {
-        await sendMail({ to: user.email, subject: "Подтвердите почту для Slotly",
+        await deliver({ to: user.email, subject: "Подтвердите почту для Slotly",
           text: "Подтвердите адрес, чтобы войти в Slotly. Ссылка действует один час.",
           actionUrl: actionUrl("/verify-email", token) });
       },
@@ -85,7 +95,7 @@ export function createOrganizerAuth(database: NodePgDatabase<typeof schema>, env
       useSecureCookies: new URL(env.APP_URL).protocol === "https:",
       defaultCookieAttributes: { httpOnly: true, sameSite: "lax" },
       // The stage-3 HTTP adapter sets this header itself. Client headers are ignored.
-      ipAddress: { ipAddressHeaders: ["x-slotly-client-ip"] },
+      ipAddress: { ipAddressHeaders: ["x-slotly-client-ip"], ipv6Subnet: 64 },
     },
     logger: {
       level: "warn",

@@ -4,6 +4,7 @@ import type { Database } from "../../server/db/types";
 import { bookingEvents, bookings, notificationOutbox } from "../../server/db/schema";
 import type { LocalMail } from "../../server/mail/local";
 import { renderBookingNotification } from "./mail";
+import { MailBudgetExceeded } from "../../server/mail/limits";
 
 export type NotificationDependencies = { database: Database; appUrl: string; secret: string; sendMail: (mail: LocalMail) => Promise<void>; clock?: () => Date };
 export const LEASE_MS = 120_000;
@@ -39,7 +40,7 @@ async function claim(deps: NotificationDependencies): Promise<Claim | undefined>
 
 // One claim per call, no long-lived transaction or network work under row locks.
 // Stable message ID + timestamp make local delivery idempotent after a crash.
-export async function deliverNextNotification(deps: NotificationDependencies): Promise<"idle" | "sent" | "retry" | "failed" | "lease-lost"> {
+export async function deliverNextNotification(deps: NotificationDependencies): Promise<"idle" | "sent" | "retry" | "failed" | "deferred" | "lease-lost"> {
   const claimed = await claim(deps); if (!claimed) return "idle";
   const [content] = await deps.database.select({ delivery: notificationOutbox, event: bookingEvents, booking: bookings })
     .from(notificationOutbox).innerJoin(bookingEvents, eq(bookingEvents.id, notificationOutbox.eventId))
@@ -47,7 +48,16 @@ export async function deliverNextNotification(deps: NotificationDependencies): P
   if (!content) return "lease-lost";
   let delivered = false;
   try { await deps.sendMail(renderBookingNotification(content, deps.appUrl, deps.secret)); delivered = true; }
-  catch { /* Never persist exception text, credentials, recipients or URLs. */ }
+  catch (error) {
+    if (error instanceof MailBudgetExceeded) {
+      const at = (deps.clock ?? (() => new Date()))();
+      const deferred = await deps.database.update(notificationOutbox).set({ leaseToken: null, lockedUntil: null,
+        attempts: Math.max(0, content.delivery.attempts - 1), availableAt: new Date(at.getTime() + error.retryAfter * 1000), lastError: "MAIL_RATE_LIMITED" })
+        .where(and(eq(notificationOutbox.id, claimed.id), eq(notificationOutbox.leaseToken, claimed.lease_token))).returning({ id: notificationOutbox.id });
+      return deferred.length ? "deferred" : "lease-lost";
+    }
+    // Never persist exception text, credentials, recipients or URLs.
+  }
   const now = (deps.clock ?? (() => new Date()))();
   const terminal = content.delivery.attempts >= MAX_ATTEMPTS;
   const rows = await deps.database.update(notificationOutbox).set({ leaseToken: null, lockedUntil: null,

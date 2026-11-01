@@ -5,13 +5,15 @@ import { parseIdentityEnv } from "../src/server/config/schema";
 import { createDatabasePool } from "../src/server/db/connection";
 import * as schema from "../src/server/db/schema";
 import { createMailDelivery } from "../src/server/mail/delivery";
+import { withMailBudget } from "../src/server/mail/limits";
 import { deliverNextNotification, notificationQueueStatus, retryFailedNotifications } from "../src/modules/notifications/worker";
 
 loadEnvironment();
 const env = parseIdentityEnv(process.env);
-const mail = createMailDelivery(env.MAIL_CONFIG, env.APP_URL);
 const pool = createDatabasePool(env);
 const database = drizzle(pool, { schema });
+const rawMail = createMailDelivery(env.MAIL_CONFIG, env.APP_URL);
+const mail = env.MAIL_TRANSPORT === "smtp" ? withMailBudget(rawMail, database, env.BETTER_AUTH_SECRET, env.MAIL_BUDGET) : rawMail;
 const options = process.argv.slice(2);
 if (options.some(option => !["--once", "--status", "--retry-failed"].includes(option)) || options.length > 1) {
   console.error("Используйте --once, --status или --retry-failed."); await pool.end(); process.exit(1);

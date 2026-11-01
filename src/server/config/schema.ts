@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { parseMailConfig } from "../mail/config";
+import { parseClientIpHeader } from "../security/client-ip";
+import { parseMailBudgetPolicy } from "../mail/limits";
 
 const isLoopback = (hostname: string) =>
   ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
@@ -71,7 +73,8 @@ export function parseIdentityEnv(input: Record<string, string | undefined>) {
     throw new Error("BETTER_AUTH_SECRET: нужен случайный секрет не короче 32 символов; выполните npm run setup");
   }
   const mail = parseMailConfig(input, base.APP_URL);
-  return { ...base, BETTER_AUTH_SECRET: secret, MAIL_TRANSPORT: mail.transport, MAIL_CONFIG: mail };
+  parseClientIpHeader(input.CLIENT_IP_HEADER, base.APP_URL);
+  return { ...base, BETTER_AUTH_SECRET: secret, MAIL_TRANSPORT: mail.transport, MAIL_CONFIG: mail, MAIL_BUDGET: parseMailBudgetPolicy(input) };
 }
 
 export type IdentityEnv = ReturnType<typeof parseIdentityEnv>;
