@@ -1,7 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { and, asc, desc, eq, gt, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
 import type { Database } from "../../server/db/types";
-import { bookings, occupancies } from "../../server/db/schema";
+import { bookingEvents, bookings, occupancies } from "../../server/db/schema";
 import { validate } from "../../shared/domain-error";
 import { readSchedule } from "../availability/service";
 import type { ScheduleData } from "../availability/validation";
@@ -12,6 +12,16 @@ import { dashboardWeek, dashboardDayPage } from "./dashboard-week";
 const meetingFields = { id: bookings.id, title: bookings.titleSnapshot, guestName: bookings.guestName, guestEmail: bookings.guestEmail,
   startAt: occupancies.startAt, endAt: occupancies.endAt, cancelledAt: occupancies.releasedAt, timezone: bookings.scheduleTimezoneSnapshot };
 export type MeetingSummary = { id: string; title: string; guestName: string; guestEmail: string; startAt: Date; endAt: Date; cancelledAt: Date | null; timezone: string };
+
+// Existing booking history presented as a small activity feed, without an
+// invented unread state or a second notification source of truth.
+export async function getOrganizerActivity(database: Database, organizerId: string) {
+  return database.select({ id: bookingEvents.id, bookingId: bookings.id, title: bookings.titleSnapshot,
+    type: bookingEvents.type, createdAt: bookingEvents.createdAt, timezone: bookings.scheduleTimezoneSnapshot })
+    .from(bookingEvents).innerJoin(bookings, and(eq(bookings.id, bookingEvents.bookingId), eq(bookings.organizerId, bookingEvents.organizerId)))
+    .where(eq(bookingEvents.organizerId, organizerId))
+    .orderBy(desc(bookingEvents.createdAt), desc(bookingEvents.version), desc(bookingEvents.id)).limit(5);
+}
 
 export function organizerDay(now: Date, timezone: string) {
   const local = Temporal.Instant.from(now.toISOString()).toZonedDateTimeISO(timezone);

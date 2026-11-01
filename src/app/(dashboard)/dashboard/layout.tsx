@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { SectionLink } from "@/components/ui/section-link";
-import { SignOut } from "@/modules/identity/components/sign-out";
+import { WorkspaceAccount } from "@/modules/organizers/components/workspace-account";
 import { SessionGuard } from "@/modules/identity/components/session-guard";
 import { DashboardNav } from "@/modules/organizers/components/dashboard-nav";
 import { requireOrganizer } from "@/modules/organizers/server";
@@ -14,7 +14,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <SectionLink className="skip-link" section="dashboard-main">Перейти к содержимому</SectionLink>
     <header className="workspace-header">
       <Link href="/dashboard" aria-label="Slotly — обзор" className="workspace-brand"><BrandMark />Slotly</Link>
-      <div className="workspace-account"><span className="workspace-account-name" title={organizer.displayName}>{organizer.displayName}</span><SignOut /></div>
+      <WorkspaceAccount displayName={organizer.displayName} />
     </header>
     <div className="workspace-body">
       <aside className="workspace-sidebar">

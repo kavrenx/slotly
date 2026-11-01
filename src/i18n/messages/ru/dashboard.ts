@@ -1,4 +1,9 @@
 export const dashboard = {
+  notifications: "Уведомления", closeNotifications: "Закрыть уведомления", account: "Аккаунт", closeAccount: "Закрыть меню аккаунта", accountSettings: "Настройки аккаунта",
+  activityHint: "Последние изменения ваших встреч", loadingActivity: "Загружаем события…", activityError: "Не удалось загрузить события.", retryActivity: "Попробовать снова", noActivity: "Пока нет событий. Новые записи, переносы и отмены появятся здесь.",
+  activityTypes: { created: "Новая запись", rescheduled: "Встреча перенесена", cancelled: "Встреча отменена" },
+  accountHint: "Как вас видят участники и как мы обращаемся к вам в Slotly.", accountName: "Ваше имя", accountNameHint: "От 1 до 100 символов. Имя используется в кабинете и на страницах записи.", accountEmail: "Электронная почта", emailVerified: "Подтверждена", accountEmailHint: "Адрес для входа и писем о встречах. Смена email пока недоступна.",
+  invalidAccountName: "Введите имя от 1 до 100 символов.", accountSaveError: "Не удалось сохранить имя. Попробуйте ещё раз.", accountSaved: "Изменения сохранены.", saveAccount: "Сохранить изменения", savingAccount: "Сохраняем…", timeSettingsHint: "Часовой пояс и рабочие часы меняются в расписании.",
   overview: "Обзор", greeting: "Здравствуйте", description: "Все ваши встречи и расписание под рукой.",
   week: "Неделя", previousWeek: "Предыдущая неделя", nextWeek: "Следующая неделя", weekDays: "Дни недели — выберите дату для просмотра записей", meetingsCount: "Встреч", todayLabel: "Сегодня",
   myPages: "Мои страницы записи", allPages: "Все страницы", publishedLabel: "Опубликована", pagesLabel: "Страниц записи", publishedCount: "Опубликовано",

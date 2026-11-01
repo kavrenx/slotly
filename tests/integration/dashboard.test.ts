@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import * as schema from "../../src/server/db/schema";
 import type { Database } from "../../src/server/db/types";
-import { getBookingList, getDashboardOverview } from "../../src/modules/organizers/dashboard-service";
+import { getBookingList, getDashboardOverview, getOrganizerActivity } from "../../src/modules/organizers/dashboard-service";
 import { fixture, insertCompleteBooking, cancelBooking, moveBooking } from "../helpers/domain";
 import { createTestDatabase, transaction } from "../helpers/database";
 
@@ -140,4 +140,22 @@ it("does not assign meetings to a civil date skipped entirely by a timezone chan
   expect(skipped.week.total).toBe(0); expect(skipped.week.meetings).toEqual([]);
   expect(skipped.week.days.find(day => day.date === "2011-12-29")!.count).toBe(1);
   expect(skipped.week.days.find(day => day.date === "2011-12-31")!.count).toBe(1);
+});
+
+it("shows only the owner's latest five real booking events without contacts or capability links", async () => {
+  const f = await fixture(test.pool), other = await fixture(test.pool);
+  await transaction(test.pool, async client => {
+    for (let day = 1; day <= 6; day++) await insertCompleteBooking(client, f, { start: `2027-02-0${day}T10:00:00Z` });
+    const changed = await insertCompleteBooking(client, f, { start: "2027-02-07T10:00:00Z" });
+    await moveBooking(client, changed.booking.id, changed.occupancy, "2027-02-08T10:00:00Z");
+    // The move is in this transaction, so release its current version here.
+    await cancelBooking(client, changed.booking.id, { ...changed.occupancy, version: 2, startAt: new Date("2027-02-08T10:00:00Z"), endAt: new Date("2027-02-08T10:30:00Z") });
+    await insertCompleteBooking(client, other, { start: "2027-02-08T10:00:00Z" });
+  });
+  const feed = await getOrganizerActivity(db, f.organizer.id);
+  expect(feed).toHaveLength(5); expect(feed[0]!.type).toBe("cancelled"); expect(feed[1]!.type).toBe("rescheduled");
+  expect(feed.every(event => event.title === "Test meeting")).toBe(true);
+  expect(Object.keys(feed[0]!).sort()).toEqual(["bookingId", "createdAt", "id", "timezone", "title", "type"]);
+  expect(await getOrganizerActivity(db, randomUUID())).toEqual([]);
+  expect(await getOrganizerActivity(db, other.organizer.id)).toHaveLength(1);
 });

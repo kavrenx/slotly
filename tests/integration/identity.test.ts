@@ -11,6 +11,7 @@ import { AuthenticationRequired, getOrganizerContext } from "../../src/modules/o
 import { createTestDatabase } from "../helpers/database";
 import { loadEnvironment } from "../../scripts/lib/environment";
 import { hashPassword } from "better-auth/crypto";
+import { handleActivityRequest } from "../../src/modules/organizers/activity-http";
 
 const origin = "http://localhost:3000";
 const password = "Local-test-password-47";
@@ -130,6 +131,28 @@ it("verifies email, logs in, and returns only the current organizer", async () =
 
 it("rejects invalid and forged sessions", async () => {
   await expect(context("slotly.session_token=forged")).rejects.toBeInstanceOf(AuthenticationRequired);
+});
+
+it("authenticates the activity feed and ignores a forged organizer id", async () => {
+  const deps = { database: drizzle(database.pool, { schema }), auth };
+  for (const sessionCookie of ["", "slotly.session_token=forged"]) {
+    expect((await handleActivityRequest(deps, new Request(origin + "/api/organizer/activity", { headers: { cookie: sessionCookie } }))).status).toBe(401);
+  }
+  const { email } = await register(true);
+  const response = await handleActivityRequest(deps, new Request(origin + "/api/organizer/activity", { headers: { cookie: cookie(await post("/sign-in/email", { email, password })), "x-organizer-id": randomUUID() } }));
+  expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("private, no-store"); expect(await response.json()).toEqual({ items: [] });
+});
+
+it("updates only the signed-in organizer name and rejects invalid names and cross-origin updates", async () => {
+  const a = await register(true), b = await register(true);
+  const sessionCookie = cookie(await post("/sign-in/email", { email: a.email, password }));
+  expect((await post("/update-user", { name: "  Тимур  " }, { cookie: sessionCookie })).status).toBe(200);
+  expect((await context(sessionCookie)).displayName).toBe("Тимур");
+  expect((await context(cookie(await post("/sign-in/email", { email: b.email, password })))).displayName).toBe("Test organizer");
+  expect((await post("/update-user", { name: " " }, { cookie: sessionCookie })).status).toBe(400);
+  expect((await post("/update-user", { name: "x".repeat(101) }, { cookie: sessionCookie })).status).toBe(400);
+  expect((await post("/update-user", { name: "Changed" }, { cookie: sessionCookie, origin: "https://untrusted.invalid" })).status).toBe(403);
+  expect((await context(sessionCookie)).displayName).toBe("Тимур");
 });
 
 it("rejects malformed verification tokens", async () => {
