@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { resolve, dirname, basename } from "node:path";
+import { tmpdir } from "node:os";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
@@ -144,7 +145,7 @@ it("recovers an expired final-attempt lease instead of stranding the queue", asy
 });
 it("publishes one local message when a send succeeds but acknowledgement is lost", async () => {
   const f = await setup();
-  const directory = await mkdtemp(resolve(".local/notification-test-"));
+  const directory = await mkdtemp(resolve(tmpdir(), "slotly-notification-test-"));
   try {
     const [content] = await db.select({ delivery: schema.notificationOutbox, event: schema.bookingEvents, booking: schema.bookings })
       .from(schema.notificationOutbox).innerJoin(schema.bookingEvents, eq(schema.bookingEvents.id, schema.notificationOutbox.eventId))
@@ -155,6 +156,6 @@ it("publishes one local message when a send succeeds but acknowledgement is lost
     expect(await readLocalMail(directory)).toHaveLength(2);
     expect(await notificationQueueStatus(db)).toEqual({ sent: 2, failed: 0, pending: 0 });
   } finally {
-    if (dirname(directory) === resolve(".local") && basename(directory).startsWith("notification-test-")) await rm(directory, { recursive: true, force: true });
+    if (dirname(directory) === resolve(tmpdir()) && basename(directory).startsWith("slotly-notification-test-")) await rm(directory, { recursive: true, force: true });
   }
 });
