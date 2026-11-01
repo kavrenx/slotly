@@ -28,21 +28,24 @@ export function renderBookingNotification(content: NotificationContent, appUrl: 
   const actionUrl = audience === "guest"
     ? `${appUrl}/manage#token=${createManagementToken(secret, b)}`
     : `${appUrl}/dashboard/bookings/${b.id}`;
+  const start = type === "cancelled" ? e.oldStartAt : e.newStartAt;
+  const end = type === "cancelled" ? e.oldEndAt : e.newEndAt;
+  if (!start || !end) throw new Error("Missing event interval");
+  const duration = `${(end.getTime() - start.getTime()) / 60_000} мин`;
   const lines = [heading, "", `${t.title}: ${line(b.titleSnapshot)}`,
     `${t.organizerLabel}: ${line(d.organizerName)}`, `${t.guestLabel}: ${line(b.guestName)}`];
   if (audience === "organizer") lines.push(`Email: ${line(b.guestEmail)}`);
   if (type === "rescheduled") lines.push("", `${t.before}: ${meetingTime(e.oldStartAt, e.oldEndAt, d.recipientTimezone)}`, `${t.after}: ${meetingTime(e.newStartAt, e.newEndAt, d.recipientTimezone)}`);
   else lines.push("", `${type === "cancelled" ? t.cancelledTime : t.time}: ${meetingTime(type === "cancelled" ? e.oldStartAt : e.newStartAt, type === "cancelled" ? e.oldEndAt : e.newEndAt, d.recipientTimezone)}`);
+  lines.push(`Длительность: ${duration}`);
   if (b.locationSnapshot) lines.push("", `${t.location}: ${b.locationSnapshot}`);
   if (e.reason) lines.push("", `${t.reason}: ${e.reason}`);
   if (type !== "created") lines.push(`${t.actor}: ${t.actors[e.actor as keyof typeof t.actors]}`);
   lines.push("", audience === "guest" ? t.guestAction : t.ownerAction, actionUrl);
   if (audience === "guest") lines.push(t.privateLink);
   lines.push("", `${t.reference}: ${b.id}`, `${t.event}: ${e.version}`, t.current, "", t.signature);
-  const start = type === "cancelled" ? e.oldStartAt : e.newStartAt;
-  const end = type === "cancelled" ? e.oldEndAt : e.newEndAt;
   const details = [{ label: t.title, value: b.titleSnapshot }, { label: type === "cancelled" ? t.cancelledTime : type === "rescheduled" ? t.after : t.time, value: meetingTime(start, end, d.recipientTimezone) },
-    { label: "Длительность", value: `${(end!.getTime() - start!.getTime()) / 60_000} мин` }, { label: t.organizerLabel, value: d.organizerName }, { label: t.guestLabel, value: audience === "organizer" ? `${b.guestName} · ${b.guestEmail}` : b.guestName }];
+    { label: "Длительность", value: duration }, { label: t.organizerLabel, value: d.organizerName }, { label: t.guestLabel, value: audience === "organizer" ? `${b.guestName} · ${b.guestEmail}` : b.guestName }];
   if (type === "rescheduled") details.push({ label: t.before, value: meetingTime(e.oldStartAt, e.oldEndAt, d.recipientTimezone) });
   if (b.locationSnapshot) details.push({ label: t.location, value: b.locationSnapshot });
   if (e.reason) details.push({ label: t.reason, value: e.reason });

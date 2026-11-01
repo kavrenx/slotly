@@ -12,6 +12,7 @@ import { createTestDatabase } from "../helpers/database";
 import { loadEnvironment } from "../../scripts/lib/environment";
 import { hashPassword } from "better-auth/crypto";
 import { handleActivityRequest } from "../../src/modules/organizers/activity-http";
+import { renderMailHtml } from "../../src/server/mail/template";
 
 const origin = "http://localhost:3000";
 const password = "Local-test-password-47";
@@ -107,6 +108,8 @@ it("creates one organizer atomically and stores a password hash without issuing 
   expect(result.rows[0].password.length).toBeGreaterThan(30);
   const message = mails.find((m) => m.to === email);
   expect(new URL(message?.actionUrl ?? "").search).toBe("");
+  expect(message?.presentation?.actionLabel).toBe("Подтвердить почту");
+  expect(renderMailHtml(message!, origin)).toContain(message!.actionUrl.replaceAll("&", "&amp;"));
 });
 
 it("does not log in before email verification", async () => {
@@ -190,6 +193,10 @@ it("resets a password once, revokes existing sessions and rejects the old passwo
   const sessionCookie = cookie(await post("/sign-in/email", { email, password }));
   expect((await post("/request-password-reset", { email })).status).toBe(200);
   const token = mailToken(email, "/reset-password");
+  const reset = mails.findLast(message => new URL(message.actionUrl).pathname === "/reset-password")!;
+  expect(reset.presentation?.actionLabel).toBe("Задать новый пароль");
+  expect(renderMailHtml(reset, origin)).toContain("Восстановим доступ");
+  expect(renderMailHtml(reset, origin)).not.toContain(password);
   const nextPassword = "Different-local-password-93";
   expect((await post("/reset-password", { token, newPassword: nextPassword })).status).toBe(200);
   await expect(context(sessionCookie)).rejects.toBeInstanceOf(AuthenticationRequired);
