@@ -52,6 +52,8 @@ html:has(.workspace) { scrollbar-gutter: stable; }
 .workspace-note > svg { color: var(--color-accent); width: 23px; height: 23px; flex: none; }
 .workspace-note p { font-size: 12px; font-weight: 600; }
 .workspace-note span { display: block; max-width: 145px; margin-top: 6px; color: var(--color-muted); font-size: 12px; line-height: 1.65; }
+.workspace-community { margin: 18px 0 0 13px; }
+@media (max-width: 699px) { .workspace-community { display: flex; justify-content: flex-end; margin: 10px 0 0; padding: 8px 4px 0; } }
 .workspace-main { width: 100%; min-width: 0; padding: 35px 0 36px 36px; }
 .workspace-eyebrow { color: var(--color-accent); font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .1em; }
 .workspace-surface { border: 1px solid #dfe3da; border-radius: 19px; background: #fcfcf86b; box-shadow: 0 1px 1px #193b2910; }

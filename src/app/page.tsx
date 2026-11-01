@@ -4,7 +4,7 @@ import { BookingPreview } from "@/components/landing/booking-preview";
 import { BookingDemo, DemoButton } from "@/components/landing/booking-demo";
 import { DashboardPreview } from "@/components/landing/dashboard-preview";
 import { Icon } from "@/components/landing/icon";
-import { FooterIcon } from "@/components/landing/footer-icon";
+import { CommunityLinks } from "@/components/community/community-links";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SectionLink } from "@/components/ui/section-link";
@@ -54,11 +54,7 @@ export default async function HomePage() {
             <nav aria-label="Ваш Slotly"><h2>{t.footer.account}</h2><Link href="/register">{t.footer.register}</Link><Link href="/dashboard">{t.footer.dashboard}</Link></nav>
             <nav aria-label="О проекте"><h2>{t.footer.about}</h2><SectionLink section="development">{t.footer.development}</SectionLink><span className="landing-footer-status"><i />{t.footer.status}</span></nav>
           </div>
-          <div className="landing-footer-socials" role="group" aria-label={t.footer.socialLabel}>
-            <button type="button" disabled aria-label={`GitHub — ${t.footer.comingSoon}`} title={`GitHub — ${t.footer.comingSoon}`}><FooterIcon name="github" /></button>
-            <button type="button" disabled aria-label={`Telegram — ${t.footer.comingSoon}`} title={`Telegram — ${t.footer.comingSoon}`}><FooterIcon name="telegram" /></button>
-            <button type="button" disabled aria-label={`${t.footer.tea} — ${t.footer.comingSoon}`} title={`${t.footer.tea} — ${t.footer.comingSoon}`}><FooterIcon name="cup-hot" /><span>{t.footer.tea}</span></button>
-          </div>
+          <div className="landing-footer-socials"><CommunityLinks /></div>
         </div>
       </footer>
     </div>

@@ -6,6 +6,7 @@ import { SessionGuard } from "@/modules/identity/components/session-guard";
 import { DashboardNav } from "@/modules/organizers/components/dashboard-nav";
 import { requireOrganizer } from "@/modules/organizers/server";
 import { WorkspaceIcon } from "@/modules/organizers/components/workspace-icon";
+import { CommunityLinks } from "@/components/community/community-links";
 import "./workspace.css";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -21,6 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <p className="workspace-sidebar-label">Ваше пространство</p>
         <DashboardNav />
         <div className="workspace-note"><WorkspaceIcon name="sprout" /><div><p>Растём вместе с вами</p><span>Больше времени для того, что важно.</span></div></div>
+        <div className="workspace-community"><CommunityLinks compact /></div>
       </aside>
       <main id="dashboard-main" tabIndex={-1} className="workspace-main"><SessionGuard>{children}</SessionGuard></main>
     </div>

@@ -11,6 +11,7 @@
 }
 
 body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); }
+html:has(dialog[data-slotly-support][open]) { overflow: hidden; scrollbar-gutter: stable; }
 ::selection { background: #c7ddce; }
 :focus-visible { outline: 3px solid var(--color-accent); outline-offset: 5px; }
 .skip-link { position: fixed; top: 1rem; left: 1rem; z-index: 10; padding: .75rem 1rem; background: var(--color-paper); transform: translateY(-200%); }

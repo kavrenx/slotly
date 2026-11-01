@@ -175,8 +175,6 @@
 .landing-footer-links { display: grid; grid-template-columns: auto auto; gap: 72px; }
 .landing-footer-description { max-width: 250px; margin-top: 15px; font-size: 12px; line-height: 1.9; color: var(--color-muted); }
 .landing-footer-socials { display: flex; align-items: center; justify-self: end; align-self: start; gap: 9px; margin-top: 5px; }
-.landing-footer-socials button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 35px; height: 35px; padding-inline: 9px; border: 1px solid var(--color-line); border-radius: 9px; color: var(--color-accent); background: #eef1e9; font-size: 11px; }
-.landing-footer-socials svg { width: 18px; height: 18px; }
 .landing-footer nav { display: flex; flex-direction: column; align-items: flex-start; gap: 13px; font-size: 11px; }
 .landing-footer nav h2 { font-size: 12px; font-weight: 600; margin-block: 8px 6px; }
 .landing-footer nav a { color: var(--color-muted); }
