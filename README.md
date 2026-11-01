@@ -86,6 +86,10 @@ GitHub Actions запускает те же проверки с отдельны
 Для запуска готовой сборки: `npm run build`, затем `npm run start` при работающих
 PostgreSQL и локальной почте.
 
+`npm run db:backup` создаёт зашифрованную копию и проверяет её восстановление в
+отдельную базу; `npm run ops:check` проверяет БД, очередь и последний архив.
+Подготовка утилит и ключа, порядок восстановления — в [инструкции](docs/operations.md).
+
 ## Стек и устройство
 
 Next.js · React · TypeScript · Tailwind CSS · PostgreSQL · Drizzle · Better Auth.
@@ -115,6 +119,7 @@ tests/               интеграции PostgreSQL и фикстуры
 | Отмена и перенос | [Управление встречей](docs/booking-management.md) |
 | Очередь и доставка | [Уведомления](docs/notifications.md) |
 | Обзор и списки | [Кабинет](docs/dashboard.md) |
+| Копии, восстановление и диагностика | [Эксплуатация](docs/operations.md) |
 
 Локальные настройки, база, письма, скриншоты QA и сборки исключены из Git.
 О подготовке изменений — в [CONTRIBUTING](CONTRIBUTING.md), о сообщениях

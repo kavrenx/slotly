@@ -4,7 +4,7 @@ import { readFileSync, lstatSync } from "node:fs";
 const paths = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 }).split("\0").filter(Boolean);
 if (!paths.length) throw new Error("Сначала добавьте подготовленные файлы в Git.");
 const problems = [];
-const forbiddenPath = /(^|\/)(?:node_modules|\.next|\.local|coverage|out|dist|test-results|playwright-report|\.vercel)(?:\/|$)|(?:^|\/)\.env(?!\.example$)|(?:\.log|\.dump|\.sql\.gz|\.backup|\.bak|\.pem|\.key|\.p12|\.pfx|\.tsbuildinfo)$|(?:^|\/)next-env\.d\.ts$/iu;
+const forbiddenPath = /(^|\/)(?:node_modules|\.next|\.local|coverage|out|dist|test-results|playwright-report|\.vercel)(?:\/|$)|(?:^|\/)\.env(?!\.example$)|(?:\.log|\.dump|\.sql\.gz|\.backup|\.slotlybackup(?:\.verified\.json)?|\.bak|\.pem|\.key|\.p12|\.pfx|\.tsbuildinfo)$|(?:^|\/)next-env\.d\.ts$/iu;
 const secrets = [
   /-{5}BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-{5}/u,
   /\bgh[pousr]_[A-Za-z0-9]{30,}\b/u,

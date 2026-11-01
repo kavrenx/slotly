@@ -16,6 +16,8 @@ next-env.d.ts
 *.dump
 *.sql.gz
 *.backup
+*.slotlybackup
+*.slotlybackup.verified.json
 *.bak
 *.pem
 *.key

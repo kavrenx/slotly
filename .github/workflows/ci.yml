@@ -38,6 +38,7 @@ jobs:
       DATABASE_SSL: disable
       MAIL_TRANSPORT: local
       CIRCLE_NODE_TOTAL: '2'
+      PG_BIN_DIR: /usr/lib/postgresql/18/bin
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -55,6 +56,19 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test -- --maxWorkers=2
+      - name: Set up PostgreSQL 18 clients
+        run: |
+          if [[ ! -x "$PG_BIN_DIR/pg_dump" || ! -x "$PG_BIN_DIR/pg_restore" ]]; then
+            sudo install -d /usr/share/postgresql-common/pgdg
+            curl --fail --silent --show-error --location https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$RUNNER_TEMP/pgdg.asc"
+            gpg --show-keys --with-colons "$RUNNER_TEMP/pgdg.asc" | grep -F 'fpr:::::::::B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8:'
+            sudo install -m 644 "$RUNNER_TEMP/pgdg.asc" /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+            echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/slotly-pgdg.list
+            sudo apt-get update -qq
+            sudo apt-get install --no-install-recommends -y postgresql-client-18
+          fi
+          "$PG_BIN_DIR/pg_dump" --version
+          "$PG_BIN_DIR/pg_restore" --version
       - run: npm run test:integration -- --maxWorkers=1
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
