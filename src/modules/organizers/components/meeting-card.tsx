@@ -2,6 +2,7 @@ import Link from "next/link";
 import { dashboard as t } from "@/i18n/messages/ru/dashboard";
 import type { MeetingSummary } from "../dashboard-service";
 import { WorkspaceIcon } from "./workspace-icon";
+import "./booking-list.css";
 
 export function MeetingCard({ meeting, now, compact = false, displayTimezone = meeting.timezone }: { meeting: MeetingSummary; now: Date; compact?: boolean; displayTimezone?: string }) {
   const format = new Intl.DateTimeFormat("ru-RU", { timeZone: meeting.timezone, year: "numeric", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" });
@@ -20,15 +21,24 @@ export function MeetingCard({ meeting, now, compact = false, displayTimezone = m
       </div><Link href={`/dashboard/bookings/${meeting.id}`} className="workspace-icon-button overview-meeting-open" aria-label={`${t.details}: ${meeting.title}, ${meeting.guestName}`}><WorkspaceIcon name="chevron" /></Link>
     </article>;
   }
-  return <article className="min-w-0 rounded-2xl border border-line bg-paper p-5 sm:p-6">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <h2 className="min-w-0 text-lg font-medium wrap-break-word"><Link href={`/dashboard/bookings/${meeting.id}`} className="underline-offset-4 hover:text-accent hover:underline">{meeting.title}</Link></h2>
-      <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs ${meeting.cancelledAt || done ? "bg-panel text-muted" : "bg-accent/10 text-accent"}`}>{status}</span>
+  const date = new Intl.DateTimeFormat("ru-RU", { timeZone: meeting.timezone, day: "numeric", month: "short", year: "numeric" });
+  const time = new Intl.DateTimeFormat("ru-RU", { timeZone: meeting.timezone, hour: "2-digit", minute: "2-digit" });
+  const startParts = date.formatToParts(meeting.startAt), endParts = date.formatToParts(meeting.endAt);
+  const sameDay = date.format(meeting.startAt) === date.format(meeting.endAt);
+  const sameYear = startParts.find(p => p.type === "year")?.value === endParts.find(p => p.type === "year")?.value;
+  const shortDate = (parts: Intl.DateTimeFormatPart[], year = true) => parts.filter(p => p.type === "day" || p.type === "month" || year && p.type === "year").map(p => p.value).join(" ");
+  const offset = (value: Date) => format.formatToParts(value).find(p => p.type === "timeZoneName")?.value ?? "";
+  const startOffset = offset(meeting.startAt), endOffset = offset(meeting.endAt);
+  const kind = meeting.cancelledAt ? "cancelled" : ongoing ? "ongoing" : done ? "finished" : "confirmed";
+  return <article className="booking-list-card">
+    <h2 className="booking-list-title"><Link href={`/dashboard/bookings/${meeting.id}`}>{meeting.title}</Link></h2>
+    <span className="booking-list-status" data-kind={kind}><i aria-hidden="true" />{status}</span>
+    <div className="booking-list-when" title={`${format.format(meeting.startAt)} — ${format.format(meeting.endAt)}`}>
+      <p className="booking-list-date"><WorkspaceIcon name="calendar" /><time dateTime={meeting.startAt.toISOString()}>{shortDate(startParts)}</time></p>
+      <p className="booking-list-time"><time dateTime={meeting.startAt.toISOString()}>{time.format(meeting.startAt)}</time><span className="booking-list-dash">–</span><time dateTime={meeting.endAt.toISOString()}>{!sameDay && <span className="booking-list-end-date">{shortDate(endParts, !sameYear)}, </span>}{time.format(meeting.endAt)}</time></p>
+      <p className="booking-list-zone"><span>{meeting.timezone}</span><span>{startOffset}{startOffset !== endOffset && ` → ${endOffset}`}</span></p>
     </div>
-    <p className="mt-4 text-sm leading-7"><time dateTime={meeting.startAt.toISOString()}>{format.format(meeting.startAt)}</time><span className="text-muted"> — </span><time dateTime={meeting.endAt.toISOString()}>{format.format(meeting.endAt)}</time></p>
-    <p className="mt-1 text-xs text-muted">{meeting.timezone}</p>
-    <div className="mt-5 flex flex-wrap items-end justify-between gap-4 border-t border-line pt-4"><div className="min-w-0"><p className="text-sm font-medium wrap-break-word">{meeting.guestName}</p><p className="mt-1 text-sm wrap-break-word text-muted">{meeting.guestEmail}</p></div>
-      <Link href={`/dashboard/bookings/${meeting.id}`} aria-label={`${t.details}: ${meeting.title}, ${meeting.guestName}`} className="inline-flex min-h-11 items-center gap-3 text-sm font-medium text-accent hover:underline">{t.details}<span aria-hidden="true">↗</span></Link>
-    </div>
+    <div className="booking-list-guest"><p>{meeting.guestName}</p><p>{meeting.guestEmail}</p></div>
+    <Link href={`/dashboard/bookings/${meeting.id}`} aria-label={`${t.details}: ${meeting.title}, ${meeting.guestName}`} className="booking-list-details">{t.details}<WorkspaceIcon name="chevron" /></Link>
   </article>;
 }

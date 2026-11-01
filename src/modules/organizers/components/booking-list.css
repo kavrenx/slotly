@@ -1,0 +1,27 @@
+.booking-list { display: grid; gap: 10px; margin-top: 16px; }
+.booking-list-card { display: grid; grid-template-columns: 205px minmax(0, 1fr) auto; grid-template-areas: "when title status" "when guest details"; gap: 6px 22px; align-items: start; min-width: 0; padding: 17px 20px; border: 1px solid var(--color-line); border-radius: 16px; background: #fcfcf85c; transition: border-color 180ms ease, background-color 180ms ease; }
+.booking-list-card:hover, .booking-list-card:focus-within { border-color: #b4c7ac; background-color: #fbfcf7; }
+.booking-list-title { grid-area: title; min-width: 0; padding-top: 1px; font-size: 16px; font-weight: 600; letter-spacing: -.015em; line-height: 1.45; overflow-wrap: anywhere; }
+.booking-list-title a { text-underline-offset: 3px; }.booking-list-title a:hover { color: var(--color-accent); text-decoration: underline; }
+.booking-list-when { grid-area: when; align-self: stretch; min-width: 0; padding-right: 17px; border-right: 1px solid #e0e5db; }
+.booking-list-date { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--color-muted); line-height: 1.5; }
+.booking-list-date > svg { width: 14px; height: 14px; flex: none; color: #648069; }
+.booking-list-time { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px; margin-top: 3px; font-size: 15px; font-weight: 550; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.booking-list-dash { padding-inline: 2px; color: #839184; font-weight: 400; }
+.booking-list-end-date { font-size: 12px; font-weight: 400; color: var(--color-muted); }
+.booking-list-zone { display: flex; flex-wrap: wrap; gap: 1px 7px; margin-top: 4px; color: var(--color-muted); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.booking-list-zone > span { min-width: 0; }
+.booking-list-zone > span:last-child { color: #708273; }
+.booking-list-guest { grid-area: guest; display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 12px; min-width: 0; align-self: center; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.booking-list-guest > p { min-width: 0; }.booking-list-guest > p:first-child { color: var(--color-ink); }.booking-list-guest > p:last-child { color: var(--color-muted); }
+.booking-list-status { grid-area: status; display: inline-flex; align-items: center; justify-self: end; gap: 5px; max-width: 100%; padding: 4px 9px; border: 1px solid #d1e0ca; border-radius: 20px; color: #346344; background: #eaf1e4; font-size: 10px; line-height: 1.5; white-space: nowrap; }
+.booking-list-status > i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
+.booking-list-status[data-kind="ongoing"] { color: #fff; background: var(--color-accent); border-color: var(--color-accent); }
+.booking-list-status[data-kind="finished"] { color: #637164; background: #eeefe8; border-color: #dfe3d8; }
+.booking-list-status[data-kind="cancelled"] { color: #805e56; background: #f2eae5; border-color: #e6d9d1; }
+.booking-list-details { grid-area: details; display: inline-flex; align-items: center; justify-self: end; align-self: end; gap: 5px; min-height: 35px; margin: 0 -5px -4px 0; padding: 6px 5px; color: var(--color-accent); font-size: 12px; font-weight: 500; text-underline-offset: 3px; }
+.booking-list-details:hover { text-decoration: underline; }.booking-list-details > svg { width: 15px; height: 15px; flex: none; }
+@media (max-width: 1099px) { .booking-list-card { grid-template-columns: 180px minmax(0, 1fr) auto; gap: 7px 16px; padding: 16px; }.booking-list-guest { display: block; }.booking-list-status { padding-inline: 8px; font-size: 9px; }.booking-list-title { font-size: 15px; }.booking-list-when { padding-right: 13px; } }
+@media (max-width: 899px) { .booking-list-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title status" "when when" "guest details"; gap: 9px 12px; }.booking-list-when { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 12px; padding: 0; border: 0; }.booking-list-time { margin-top: 0; font-size: 14px; }.booking-list-zone { flex-basis: 100%; margin-top: 0; }.booking-list-guest { font-size: 11px; }.booking-list-details { min-height: 40px; }.booking-list-status { margin-top: 1px; } }
+@media (max-width: 699px) { .booking-list { gap: 9px; }.booking-list-card { padding: 15px 14px; border-radius: 14px; }.booking-list-title { font-size: 15px; }.booking-list-status { font-size: 9px; }.booking-list-date { font-size: 12px; }.booking-list-details { font-size: 11px; }.booking-list-guest { line-height: 1.75; } }
+@media (prefers-reduced-motion: reduce) { .booking-list-card { transition: none; } }

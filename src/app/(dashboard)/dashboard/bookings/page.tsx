@@ -21,7 +21,7 @@ export default async function BookingsPage({ searchParams }: PageProps<"/dashboa
     </Link>)}</nav>
     {result.items.length ? <>
       <p className="mt-6 text-xs text-muted">{t.total}: {result.total}</p>
-      <div className="mt-4 space-y-4">{result.items.map(meeting => <MeetingCard key={meeting.id} meeting={meeting} now={result.generatedAt} />)}</div>
+      <div className="booking-list">{result.items.map(meeting => <MeetingCard key={meeting.id} meeting={meeting} now={result.generatedAt} />)}</div>
       {result.totalPages > 1 && <nav aria-label="Страницы списка записей" className="mt-7 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6">
         {result.page > 1 ? <Link href={bookingsHref(result.view, result.page - 1)} className={secondaryButton}>{t.previous}</Link> : <span />}
         <p className="text-xs text-muted">{t.page} {result.page} {t.of} {result.totalPages}</p>
