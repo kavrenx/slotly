@@ -15,6 +15,15 @@ export function StatusIcon({ done }: { done: boolean }) {
 }
 
 export function PasswordFeedback({ password }: { password: string }) {
+  // Keep a rating across eligible edits, but discard it when the field is
+  // cleared or an immediate composition error makes that rating inapplicable.
+  const mode = !password ? "empty" : getPasswordIssues(password).length ? "invalid" : "eligible";
+  return <div id="password-feedback" className="feedback-reveal" data-visible={Boolean(password)} aria-hidden={!password}>
+    <div className="min-h-0 overflow-hidden"><PasswordFeedbackContent key={mode} password={password} /></div>
+  </div>;
+}
+
+function PasswordFeedbackContent({ password }: { password: string }) {
   const [assessment, setAssessment] = useState<{
     input: string; value: Awaited<ReturnType<typeof assessPassword>> | null;
   } | null>(null);
@@ -32,21 +41,22 @@ export function PasswordFeedback({ password }: { password: string }) {
 
   const current = assessment?.input === password ? assessment : null;
   const issues = getPasswordIssues(password);
-  const score = issues.length === 0 ? current?.value?.score ?? 0 : 0;
+  const checking = Boolean(password) && issues.length === 0 && !current;
+  const displayed = current ?? assessment;
+  const score = issues.length === 0 ? displayed?.value?.score ?? 0 : 0;
   const validLength = password.length >= 10 && password.length <= 128;
   const label = issues.length > 0 ? issues.map((issue) => identity.errors[issue]).join(" ")
     : !password ? t.empty : !current ? t.checking : !current.value ? t.unavailable : t.levels[score] ?? t.empty;
-  const filled = password ? Math.max(1, score) : 0;
+  const filled = !password ? 0 : issues.length ? 1 : displayed?.value ? Math.max(1, score) : 0;
   const warning = issues.length === 0 ? current?.value?.warning ?? "" : "";
 
-  return <div id="password-feedback" className="feedback-reveal" data-visible={Boolean(password)} aria-hidden={!password}>
-    <div className="min-h-0 overflow-hidden">
-      <div className="pt-3">
-        <div role="meter" aria-label={t.label} aria-valuemin={0} aria-valuemax={4} aria-valuenow={score} aria-valuetext={label} className="flex gap-1.5">
+  return <div className="pt-3">
+        <div role="meter" aria-label={t.label} aria-valuemin={0} aria-valuemax={4} aria-valuenow={score} aria-valuetext={label} aria-busy={checking} data-checking={checking} className={`flex gap-1.5 motion-safe:transition-opacity motion-safe:duration-200 ${checking ? "opacity-60" : ""}`}>
           {[0, 1, 2, 3].map((index) => <span key={index} aria-hidden="true" className={`h-1.5 flex-1 rounded-full motion-safe:transition-colors motion-safe:duration-200 ${index < filled ? colors[score] : "bg-line"}`} />)}
         </div>
         <p className={`mt-2.5 flex items-center gap-2 text-xs ${validLength ? "text-accent" : "text-muted"}`}>
           <StatusIcon done={validLength} /><span>{identity.passwordHint}</span>
+          <span role="status" className="ml-auto text-[10px] text-muted">{checking ? t.checking : current && !current.value ? t.unavailable : ""}</span>
         </p>
         {passwordIssueCodes.map((issue) => <div key={issue} className="feedback-reveal" data-visible={Boolean(password) && issues.includes(issue)} aria-hidden={!password || !issues.includes(issue)}>
           <div className="min-h-0 overflow-hidden">
@@ -58,7 +68,5 @@ export function PasswordFeedback({ password }: { password: string }) {
             <p key={warning} aria-live="polite" className="feedback-message-in pt-2 text-xs leading-5 text-rose-700">{warning}</p>
           </div>
         </div>
-      </div>
-    </div>
   </div>;
 }

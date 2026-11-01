@@ -1,5 +1,6 @@
 export const identity = {
-  rememberMe: "Сохранять вход на этом устройстве", rememberHint: "До 7 дней. На общем устройстве лучше снять галочку.",
+  rememberMe: "Запомнить меня",
+  emailRequired: "Укажите электронную почту.", invalidEmail: "Проверьте адрес: например, name@gmail.com.", emailDomainsLabel: "Добавить домен почты", emailDomainAction: "Подставить", emailDomainHint: "Сначала введите часть адреса до @",
   sessionEnded: "Сессия завершена. Возвращаемся ко входу…",
   headings: {
     register: "Начнём со знакомства",

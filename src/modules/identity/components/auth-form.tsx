@@ -7,6 +7,7 @@ import { identity as t } from "@/i18n/messages/ru/identity";
 import { authClient } from "../client";
 import { emailInput, getPasswordIssues, organizerName } from "../validation";
 import { PasswordFeedback } from "./password-feedback";
+import { EmailField } from "./email-field";
 
 export type AuthMode = keyof typeof t.headings;
 export function AuthForm({ mode }: { mode: AuthMode }) {
@@ -41,8 +42,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       if (passwordIssue) {
         setError(t.errors[passwordIssue] ?? t.genericError); return;
       }
-      if ((hasEmail && !emailInput.safeParse(email).success) ||
-          (mode === "register" && !organizerName.safeParse(name).success)) {
+      if (hasEmail && !emailInput.safeParse(email).success) {
+        const field = event.currentTarget.elements.namedItem("email") as HTMLInputElement;
+        field.setCustomValidity(t.invalidEmail); field.reportValidity(); return;
+      }
+      if (mode === "register" && !organizerName.safeParse(name).success) {
         setError(t.invalidFields); return;
       }
       if (repeatPassword && password !== data.get("repeatPassword")) { setError(t.differentPasswords); return; }
@@ -88,7 +92,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       ) : (
         <form onSubmit={submit} aria-busy={pending} className="mt-8 space-y-5">
           {mode === "register" && <label className="block text-sm font-medium" htmlFor="name">{t.name}<input className={inputClass} id="name" name="name" autoComplete="name" required maxLength={100} /></label>}
-          {hasEmail && <label className="block text-sm font-medium" htmlFor="email">{t.email}<input className={inputClass} id="email" name="email" type="email" autoComplete="email" required maxLength={254} /></label>}
+          {hasEmail && <EmailField inputClass={inputClass} />}
           {hasPassword && <div>
             <label className="block text-sm font-medium" htmlFor="password">{t.password}</label>
             <div className="relative">
@@ -120,7 +124,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               </div>
             </div>
           </div>}
-          {mode === "login" && <div><label className="flex cursor-pointer items-center gap-3 text-sm"><input type="checkbox" name="rememberMe" defaultChecked className="size-4 shrink-0 accent-accent" aria-describedby="remember-hint" />{t.rememberMe}</label><p id="remember-hint" className="mt-2 pl-7 text-xs leading-5 text-muted">{t.rememberHint}</p></div>}
+          {mode === "login" && <label className="flex cursor-pointer items-center gap-3 text-sm"><input type="checkbox" name="rememberMe" defaultChecked className="size-4 shrink-0 accent-accent" />{t.rememberMe}</label>}
           {error && <p key={error} role="alert" className="feedback-message-in rounded-xl border border-red-300 bg-red-50 p-4 text-sm leading-6 text-red-900">{error}</p>}
           <button disabled={pending} className="w-full rounded-xl bg-accent px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-ink disabled:cursor-wait disabled:opacity-60">{pending ? t.pending : t.buttons[mode]}</button>
         </form>
