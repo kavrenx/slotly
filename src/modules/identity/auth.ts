@@ -45,6 +45,7 @@ export function createOrganizerAuth(database: NodePgDatabase<typeof schema>, env
       async sendResetPassword({ user, token }) {
         await deliver({ to: user.email, subject: "Восстановление доступа к Slotly",
           text: "Чтобы задать новый пароль, откройте ссылку. Она действует 30 минут. Если вы не запрашивали смену пароля, проигнорируйте письмо.",
+          presentation: { heading: "Восстановим доступ", intro: "Задайте новый пароль для аккаунта организатора Slotly.", actionLabel: "Задать новый пароль", notes: ["Ссылка действует 30 минут. После смены пароля потребуется войти заново.", "Если вы не запрашивали смену пароля, проигнорируйте письмо."] },
           actionUrl: actionUrl("/reset-password", token) });
       },
     },
@@ -53,6 +54,7 @@ export function createOrganizerAuth(database: NodePgDatabase<typeof schema>, env
       async sendVerificationEmail({ user, token }) {
         await deliver({ to: user.email, subject: "Подтвердите почту для Slotly",
           text: "Подтвердите адрес, чтобы войти в Slotly. Ссылка действует один час.",
+          presentation: { heading: "Подтвердите вашу почту", intro: "Остался один шаг, чтобы начать организовывать встречи в Slotly.", actionLabel: "Подтвердить почту", notes: ["Ссылка действует один час. Если вы не создавали аккаунт, проигнорируйте это письмо."] },
           actionUrl: actionUrl("/verify-email", token) });
       },
     },

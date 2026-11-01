@@ -1,15 +1,13 @@
 import type { LocalMail } from "./local";
-
-const escape = (text: string) => text.replace(/[&<>"']/gu, char =>
-  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
+import { escapeMailHtml as escape, mailAction, renderMailBody } from "./template";
 
 export function renderLocalMailbox(messages: LocalMail[], appUrl: string) {
   const html = messages.map(message => {
-    const action = message.actionUrl && URL.canParse(message.actionUrl) ? new URL(message.actionUrl) : null;
-    const allowed = action && action.origin === appUrl && !action.username && !action.password &&
-      (["/verify-email", "/reset-password", "/manage"].includes(action.pathname) || /^\/dashboard\/bookings\/[a-f0-9-]{36}$/u.test(action.pathname));
+    const action = mailAction(message.actionUrl, appUrl);
+    const allowed = action !== null;
     const label = action?.pathname === "/manage" ? "Управлять встречей" : action?.pathname.startsWith("/dashboard/bookings/") ? "Открыть запись" : "Открыть ссылку";
-    return `<article><div class="meta"><span>${escape(message.to)}</span><time>${escape(message.createdAt ?? "")}</time></div><h2>${escape(message.subject)}</h2><p>${escape(message.text)}</p>${allowed ? `<a class="action" href="${escape(action.toString())}">${label}<span aria-hidden="true"> →</span></a>` : ""}</article>`;
+    const at = message.createdAt && Number.isFinite(Date.parse(message.createdAt)) ? new Intl.DateTimeFormat("ru-RU", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" }).format(new Date(message.createdAt)) + " UTC" : "";
+    return `<article><div class="meta"><span>${escape(message.to)}</span><time>${escape(at)}</time></div>${message.presentation ? `<div style="margin-top:20px">${renderMailBody(message, appUrl)}</div><details><summary>Текстовая версия</summary><p>${escape(message.text)}</p></details>` : `<h2>${escape(message.subject)}</h2><p>${escape(message.text)}</p>${allowed ? `<a class="action" href="${escape(action.toString())}">${label}<span aria-hidden="true"> →</span></a>` : ""}`}</article>`;
   }).join("");
   return `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Slotly — локальная почта</title><style>
   *{box-sizing:border-box}body{font:15px/1.7 system-ui;background:#f7f7f2;color:#192b27;max-width:840px;margin:48px auto;padding:0 24px}

@@ -14,6 +14,7 @@ import { bookingQuote, confirmBookingInput, requestCodeInput, type BookingQuote,
 import { checkCode, guestDigest, issueCode, openCode } from "./crypto";
 import { spendGuestLimit } from "./limits";
 import { createManagementToken } from "../booking-management/token";
+import { meetingTimeSummary } from "../../shared/meeting-time";
 
 export type GuestBookingDependencies = { database: Database; secret: string; sendMail: (mail: LocalMail) => Promise<void>; clock?: () => Date };
 type Challenge = typeof guestChallenges.$inferSelect;
@@ -94,9 +95,12 @@ export async function requestGuestCode(deps: GuestBookingDependencies, publicId:
   if (!challenge.sentAt) {
     let code: string;
     try { code = openCode(deps.secret, challenge.id, challenge.sealedCode); } catch { throw new DomainError("INVALID_CODE"); }
-    const when = new Intl.DateTimeFormat("ru-RU", { timeZone: challenge.guestTimezone, dateStyle: "long", timeStyle: "short" }).format(challenge.startAt);
+    const time = meetingTimeSummary({ startAt: challenge.startAt.toISOString(), endAt: challenge.endAt.toISOString() }, challenge.guestTimezone);
     await deps.sendMail({ messageId: challenge.id, createdAt: challenge.createdAt.toISOString(), to: challenge.guestEmail, subject: "Код подтверждения записи в Slotly",
-      text: `Ваш код: ${code}\n\n${challenge.quote.title}\n${when} · ${challenge.guestTimezone}\n\nКод действует 10 минут. Время пока не забронировано. Если вы не запрашивали запись, проигнорируйте письмо.` });
+      text: `Ваш код: ${code}\n\n${challenge.quote.title}\n${time.date}\n${time.time} · ${challenge.guestTimezone} · ${time.offset}\n\nКод действует 10 минут. Время пока не забронировано. Если вы не запрашивали запись, проигнорируйте письмо.`,
+      presentation: { heading: "Подтвердите запись", intro: "Введите этот код на странице Slotly, чтобы завершить запись.", code,
+        details: [{ label: "Встреча", value: challenge.quote.title }, { label: "Дата и время", value: `${time.date}\n${time.time} · ${challenge.guestTimezone} · ${time.offset}` }],
+        notes: ["Код действует 10 минут. Время остаётся доступным другим участникам до подтверждения.", "Если вы не запрашивали запись, проигнорируйте письмо."] } });
     await deps.database.update(guestChallenges).set({ sentAt: now() }).where(and(eq(guestChallenges.id, challenge.id), isNull(guestChallenges.sentAt)));
   }
   return dto(challenge);

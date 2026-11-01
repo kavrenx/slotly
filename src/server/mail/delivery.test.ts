@@ -83,6 +83,9 @@ it.each(["tls", "starttls"] as const)("delivers MIME mail through authenticated 
     expect(server.messages[0]).toContain("https://slotly.example/verify-email#token=test-only");
     expect(server.messages[0]).toContain("Message-ID: <11111111-1111-4111-8111-111111111111@slotly.example>");
     expect(server.messages[0]).toContain("To: guest@example.invalid");
+    expect(server.messages[0]).toContain("multipart/alternative");
+    expect(server.messages[0]).toContain("Content-Type: text/plain");
+    expect(server.messages[0]).toContain("Content-Type: text/html");
   } finally { await server.close(); }
 }, 25_000);
 it("refuses an untrusted certificate before authenticating or delivering", async () => {

@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { renderBookingNotification, type NotificationContent } from "./mail";
+import { renderMailHtml } from "../../server/mail/template";
 
 function content(): NotificationContent {
   const at = new Date("2027-01-04T06:00:00Z");
@@ -33,4 +34,17 @@ it("keeps user content out of mail headers and gives organizers an authenticated
   const message = renderBookingNotification(c, "http://localhost:3000", "s".repeat(64));
   expect(message.subject).not.toContain("\n"); expect(message.subject).not.toContain("\r"); expect(message.subject).not.toContain("\u0000");
   expect(message.actionUrl).toContain("/dashboard/bookings/"); expect(message.text).not.toContain("#token=");
+});
+it.each(["created", "rescheduled", "cancelled"])("renders safe HTML for both audiences of %s using event time", type => {
+  for (const audience of ["guest", "organizer"]) {
+    const c = content(); c.event.type = type; c.delivery.audience = audience;
+    c.event.oldStartAt = new Date("2027-01-03T10:00:00Z"); c.event.oldEndAt = new Date("2027-01-03T11:00:00Z");
+    c.booking.locationSnapshot = '<img src="https://foreign.invalid/tracker">';
+    const message = renderBookingNotification(c, "https://slotly.example", "s".repeat(64));
+    const html = renderMailHtml(message, "https://slotly.example");
+    expect(html).not.toContain("<img"); expect(html).toContain("&lt;img");
+    expect(html).toContain(type === "cancelled" ? "60 мин" : "30 мин");
+    expect(html.includes("#token=")).toBe(audience === "guest");
+    expect(html).not.toContain("localhost"); expect(html).not.toContain("2027-01-04T");
+  }
 });

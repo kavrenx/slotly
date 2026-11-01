@@ -3,6 +3,7 @@ import { createTransport } from "nodemailer";
 import { z } from "zod";
 import type { MailConfig } from "./config";
 import { sendLocalMail, type LocalMail } from "./local";
+import { renderMailHtml } from "./template";
 
 export class MailDeliveryError extends Error {
   constructor(readonly code: "MAIL_INVALID" | "MAIL_CONNECTION_FAILED" | "MAIL_DELIVERY_FAILED") { super(code); }
@@ -37,6 +38,7 @@ export function createMailDelivery(config: MailConfig, appUrl: string, localDire
           from: { name: "Slotly", address: config.MAIL_FROM }, to: { name: "", address: message.to },
           envelope: { from: config.MAIL_FROM, to: [message.to] }, subject: message.subject,
           text: message.actionUrl && !message.text.includes(message.actionUrl) ? `${message.text}\n\n${message.actionUrl}` : message.text,
+          html: renderMailHtml(message, appUrl),
           messageId: `<${id}@${origin.hostname}>`, date: message.createdAt ? new Date(message.createdAt) : new Date(),
         });
         if (result.accepted.length !== 1 || result.rejected.length || result.pending?.length) throw new Error("Not accepted");

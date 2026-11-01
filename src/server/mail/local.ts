@@ -1,8 +1,9 @@
 import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import type { MailPresentation } from "./template";
 
-export type LocalMail = { to: string; subject: string; text: string; actionUrl?: string; messageId?: string; createdAt?: string };
+export type LocalMail = { to: string; subject: string; text: string; actionUrl?: string; messageId?: string; createdAt?: string; presentation?: MailPresentation };
 export const localMailDirectory = resolve(".local/mail");
 export async function sendLocalMail(message: LocalMail, directory = localMailDirectory) {
   await mkdir(directory, { recursive: true, mode: 0o700 });
