@@ -29,7 +29,7 @@ export async function reserveMailLimits(database: Database, secret: string, limi
   await database.transaction(async tx => {
     const at = now ?? new Date(Number((await tx.execute(sql`select extract(epoch from current_timestamp)*1000 as milliseconds`)).rows[0]!.milliseconds));
     let retryAfter = 0;
-    const buckets = limits.map(limit => ({ ...limit, key: digest(secret, limit.scope) })).sort((a, b) => a.key.localeCompare(b.key));
+    const buckets = limits.map(limit => ({ ...limit, key: digest(secret, limit.scope) })).sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
     for (const bucket of buckets) {
       const expiry = new Date(at.getTime() + bucket.seconds * 1000).toISOString();
       const result = await tx.execute(sql`insert into slotly.mail_delivery_limits as existing (key,count,expires_at)
